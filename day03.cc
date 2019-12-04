@@ -1,7 +1,7 @@
 #include <functional>
 #include <iostream>
 #include <limits>
-#include <set>
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -57,27 +57,36 @@ Point Step(Point pos, char code) {
 }
 
 int main() {
-  std::set<Point, PointCompare> grid;
+  std::map<Point, int, PointCompare> grid;
 
   Point pos{0, 0};
-  ReadWireInput([&grid, &pos] (int code, int distance) {
+  int step_count = 0;
+  ReadWireInput([&grid, &pos, &step_count] (int code, int distance) {
     for (int i = 0; i < distance; ++i) {
       pos = Step(pos, code);
-      grid.insert(pos);
+      ++step_count;
+      if (grid.find(pos) == grid.end()) {
+        grid[pos] = step_count;
+      }
     }
   });
 
   auto smallest_distance = std::numeric_limits<int>::max();
+  auto smallest_step_count = std::numeric_limits<int>::max();
   pos = {0, 0};
-  ReadWireInput([&grid, &pos, &smallest_distance] (int code, int distance) {
+  step_count = 0;
+  ReadWireInput([&grid, &pos, &smallest_distance, &step_count, &smallest_step_count] (int code, int distance) {
     for (int i = 0; i < distance; ++i) {
       pos = Step(pos, code);
+      ++step_count;
       if (grid.find(pos) != grid.end()) {
         smallest_distance = std::min(smallest_distance, std::abs(pos.x) + std::abs(pos.y));
+        smallest_step_count = std::min(smallest_step_count, grid[pos] + step_count);
       }
     }
   });
   std::cout << smallest_distance << "\n";
+  std::cout << smallest_step_count << "\n";
   return 0;
 }
 
