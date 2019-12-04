@@ -29,6 +29,17 @@ int ExecuteProgram(int noun, int verb, std::vector<int> memory) {
   return memory[0];
 }
 
+int FindParams(int desired_result, std::vector<int> const & memory) {
+  for (int noun = 0; noun < 100; ++noun) {
+    for (int verb = 0; verb < 100; ++verb) {
+      if (desired_result == ExecuteProgram(noun, verb, memory)) {
+        return 100 * noun + verb;
+      }
+    }
+  }
+  return -1;
+}
+
 int main() {
   std::vector<int> program;
   {
@@ -41,6 +52,10 @@ int main() {
 
   auto result = ExecuteProgram(12, 2, program);
   std::cout << result << "\n";
+
+  auto noun_and_verb = FindParams(19690720, program);
+  std::cout << noun_and_verb << "\n";
+
   return 0;
 }
 
