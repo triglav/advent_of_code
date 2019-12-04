@@ -17,6 +17,22 @@ bool CheckForAdjacentDigits(std::string const & s) {
   return false;
 }
 
+bool CheckForAdjacentDigits2(std::string const & s) {
+  char c = s[0];
+  int count = 1;
+  for (int i = 1; i < 6; ++i) {
+    if (s[i] == c) {
+      ++count;
+    } else if (count == 2) {
+      return true;
+    } else {
+      c = s[i];
+      count = 1;
+    }
+  }
+  return count == 2;
+}
+
 bool CheckForIncreasingSequence(std::string const & s) {
   for (int i = 0; i < 5; ++i) {
     if (s[i] > s[i+1]) {
@@ -31,16 +47,21 @@ int main() {
   int const input_max = 652527;
 
   int count = 0;
+  int count2 = 0;
   for (int i = input_min; i <= input_max; ++i) {
     auto s = ConvertToString(i);
-    if (!CheckForAdjacentDigits(s)) {
-      continue;
-    }
     if (!CheckForIncreasingSequence(s)) {
       continue;
     }
-    ++count;
+    if (CheckForAdjacentDigits(s)) {
+      ++count;
+    }
+    if (CheckForAdjacentDigits2(s)) {
+      ++count2;
+    }
   }
-  std::cout << count << "\n";
+  std::cout
+    << count << "\n"
+    << count2 << "\n";
 }
 
