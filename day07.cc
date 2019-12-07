@@ -2,84 +2,101 @@
 #include <deque>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <vector>
 
-int GetParamValue(int pos, int number, int instruction,
-                  std::vector<int> const &memory) {
-  auto const mode =
-      (instruction / static_cast<int>(std::pow(10, number + 1))) % 10;
-  if (mode == 0) {
-    auto const input_pos = memory[pos + number];
-    return memory[input_pos];
-  }
-  assert(mode == 1);
-  return memory[pos + number];
-}
+using Memory = std::vector<int>;
 
-int ExecuteProgram(std::deque<int> inputs, std::vector<int> memory) {
-  int pos = 0;
-  while (true) {
-    auto const instruction = memory[pos];
-    auto const opcode = instruction % 100;
-    if (opcode == 99) {
-      break;
+enum class Signal {
+  END = 0,
+  ERR,
+  INT,
+};
+
+class Program {
+public:
+  explicit Program(Memory const &memory)
+      : memory_(memory), pos_(0), state_(Signal::INT) {}
+
+  std::tuple<Signal, int> Execute(std::deque<int> *inputs) {
+    if (state_ != Signal::INT) {
+      return std::make_tuple(state_, 0);
     }
-    if (opcode == 1) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      auto const output_pos = memory[pos + 3];
-      memory[output_pos] = p1 + p2;
-      pos += 4;
-    } else if (opcode == 2) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      auto const output_pos = memory[pos + 3];
-      memory[output_pos] = p1 * p2;
-      pos += 4;
-    } else if (opcode == 3) {
-      auto const output_pos = memory[pos + 1];
-      memory[output_pos] = inputs.front();
-      inputs.pop_front();
-      pos += 2;
-    } else if (opcode == 4) {
-      auto const output_pos = memory[pos + 1];
-      pos += 2;
-      return memory[output_pos];
-    } else if (opcode == 5) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      if (p1 != 0) {
-        pos = p2;
-      } else {
-        pos += 3;
+    while (true) {
+      auto const instruction = memory_[pos_++];
+      auto const opcode = instruction % 100;
+      if (opcode == 99) {
+        state_ = Signal::END;
+        return std::make_tuple(Signal::END, 0);
       }
-    } else if (opcode == 6) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      if (p1 == 0) {
-        pos = p2;
+      if (opcode == 1) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        auto const output_pos = memory_[pos_++];
+        memory_[output_pos] = p1 + p2;
+      } else if (opcode == 2) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        auto const output_pos = memory_[pos_++];
+        memory_[output_pos] = p1 * p2;
+      } else if (opcode == 3) {
+        auto const output_pos = memory_[pos_++];
+        memory_[output_pos] = inputs->front();
+        inputs->pop_front();
+      } else if (opcode == 4) {
+        auto const output_pos = memory_[pos_++];
+        state_ = Signal::INT;
+        return std::make_tuple(Signal::INT, memory_[output_pos]);
+      } else if (opcode == 5) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        if (p1 != 0) {
+          pos_ = p2;
+        }
+      } else if (opcode == 6) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        if (p1 == 0) {
+          pos_ = p2;
+        }
+      } else if (opcode == 7) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        auto const output_pos = memory_[pos_++];
+        memory_[output_pos] = ((p1 < p2) ? 1 : 0);
+      } else if (opcode == 8) {
+        auto const p1 = GetParamValue(1, instruction);
+        auto const p2 = GetParamValue(2, instruction);
+        auto const output_pos = memory_[pos_++];
+        memory_[output_pos] = ((p1 == p2) ? 1 : 0);
       } else {
-        pos += 3;
+        std::cerr << "Invalid opcode: " << opcode << "\n";
+        state_ = Signal::ERR;
+        return std::make_tuple(Signal::ERR, 0);
       }
-    } else if (opcode == 7) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      auto const output_pos = memory[pos + 3];
-      memory[output_pos] = ((p1 < p2) ? 1 : 0);
-      pos += 4;
-    } else if (opcode == 8) {
-      auto const p1 = GetParamValue(pos, 1, instruction, memory);
-      auto const p2 = GetParamValue(pos, 2, instruction, memory);
-      auto const output_pos = memory[pos + 3];
-      memory[output_pos] = ((p1 == p2) ? 1 : 0);
-      pos += 4;
-    } else {
-      std::cerr << "Invalid opcode: " << opcode << "\n";
-      break;
     }
+    std::cerr << "Unexpected error\n";
+    state_ = Signal::ERR;
+    return std::make_tuple(Signal::ERR, 0);
   }
-  exit(1);
-}
+
+private:
+  int GetParamValue(int number, int instruction) {
+    auto const mode =
+        (instruction / static_cast<int>(std::pow(10, number + 1))) % 10;
+    if (mode == 0) {
+      auto const input_pos = memory_[pos_++];
+      return memory_[input_pos];
+    }
+    assert(mode == 1);
+    return memory_[pos_++];
+  }
+
+private:
+  Memory memory_;
+  int pos_;
+  Signal state_;
+}; // class Program
 
 using PhaseSetting = std::vector<int>;
 
@@ -109,32 +126,83 @@ GeneratePhaseSettingVariations(std::vector<int> const &available_phases) {
   return setting_variations;
 }
 
-int ExecuteAplifiers(std::vector<int> const &program,
-                     PhaseSetting const &setting, int input_signal) {
+int ExecuteAplifiers(Memory const &memory, PhaseSetting const &setting,
+                     int input_signal) {
   auto signal = input_signal;
   for (auto phase : setting) {
-    signal = ExecuteProgram({phase, signal}, program);
+    Program program{memory};
+    std::deque<int> inputs = {phase, signal};
+    auto const result = program.Execute(&inputs);
+    if (std::get<0>(result) != Signal::INT) {
+      exit(1);
+    }
+    signal = std::get<1>(result);
   }
   return signal;
 }
 
+int FeedbackLoopAplifiers(Memory const &memory, PhaseSetting const &setting,
+                          int input_signal) {
+  std::vector<Program> amplifiers(setting.size(), Program(memory));
+
+  std::vector<std::deque<int>> inputs(setting.size());
+  for (int i = 0; i < setting.size(); ++i) {
+    inputs[i].push_back(setting[i]);
+  }
+  inputs.front().push_back(input_signal);
+
+  int i = 0;
+  while (true) {
+    auto const r = amplifiers[i].Execute(&inputs[i]);
+    i = (i + 1) % setting.size();
+    auto s = std::get<0>(r);
+    if (s == Signal::ERR) {
+      exit(1);
+    }
+    if (s == Signal::INT) {
+      auto const x = std::get<1>(r);
+      inputs[i].push_back(x);
+      continue;
+    }
+    if (s == Signal::END) {
+      if (i + 1 == setting.size()) {
+        break;
+      }
+      continue;
+    }
+  }
+  return inputs.front().front();
+}
+
 int main() {
-  std::vector<int> program;
+  Memory memory;
   {
     std::string token;
     while (std::getline(std::cin, token, ',')) {
       auto instruction = std::stoi(token);
-      program.push_back(instruction);
+      memory.push_back(instruction);
     }
   }
 
-  auto const setting_variations =
-      GeneratePhaseSettingVariations({0, 1, 2, 3, 4});
-  int max_result = 0;
-  for (auto const &setting : setting_variations) {
-    max_result = std::max(ExecuteAplifiers(program, setting, 0), max_result);
+  {
+    auto const setting_variations =
+        GeneratePhaseSettingVariations({0, 1, 2, 3, 4});
+    int max_result = 0;
+    for (auto const &setting : setting_variations) {
+      max_result = std::max(ExecuteAplifiers(memory, setting, 0), max_result);
+    }
+    std::cout << max_result << "\n";
   }
-  std::cout << max_result << "\n";
+  {
+    auto const setting_variations =
+        GeneratePhaseSettingVariations({5, 6, 7, 8, 9});
+    int max_result = 0;
+    for (auto const &setting : setting_variations) {
+      max_result =
+          std::max(FeedbackLoopAplifiers(memory, setting, 0), max_result);
+    }
+    std::cout << max_result << "\n";
+  }
 
   return 0;
 }
