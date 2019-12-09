@@ -158,5 +158,11 @@ int main() {
     auto const r = program.Execute(&inputs);
     std::cout << std::get<1>(r) << "\n";
   }
+  {
+    std::deque<int64_t> inputs = {2};
+    Program program{memory};
+    auto const r = program.Execute(&inputs);
+    std::cout << std::get<1>(r) << "\n";
+  }
   return 0;
 }
