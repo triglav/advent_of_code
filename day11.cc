@@ -257,27 +257,66 @@ int main() {
     }
   }
 
-  Robot robot{memory};
+  {
+    Robot robot{memory};
+    std::unordered_map<Coord, Color> grid;
+    auto GetColor = [&grid](Coord pos) -> Color {
+      auto it = grid.find(pos);
+      if (it == grid.end()) {
+        return Color::Black;
+      }
+      return it->second;
+    };
 
-  std::unordered_map<Coord, Color> grid;
-  auto GetColor = [&grid](Coord pos) -> Color {
-    auto it = grid.find(pos);
-    if (it == grid.end()) {
-      return Color::Black;
+    while (true) {
+      auto const pos = robot.pos();
+      auto const color = GetColor(pos);
+      auto const to_paint = robot.Advance(color);
+      if (!to_paint) {
+        break;
+      }
+      grid[pos] = *to_paint;
     }
-    return it->second;
-  };
-
-  while (true) {
-    auto const pos = robot.pos();
-    auto const color = GetColor(pos);
-    auto const to_paint = robot.Advance(color);
-    if (!to_paint) {
-      break;
-    }
-    grid[pos] = *to_paint;
+    std::cout << grid.size() << "\n";
   }
-  std::cout << grid.size() << "\n";
+
+  {
+    Robot robot{memory};
+    std::unordered_map<Coord, Color> grid;
+    auto GetColor2 = [&grid](Coord pos) -> Color {
+      auto it = grid.find(pos);
+      if (it == grid.end()) {
+        return Color::White;
+      }
+      return it->second;
+    };
+
+    Coord min_coord{0,0};
+    Coord max_coord{0,0};
+    while (true) {
+      auto const pos = robot.pos();
+
+      min_coord.x = std::min(min_coord.x, pos.x);
+      min_coord.y = std::min(min_coord.y, pos.y);
+      max_coord.x = std::max(max_coord.x, pos.x);
+      max_coord.y = std::max(max_coord.y, pos.y);
+
+      auto const color = GetColor2(pos);
+      auto const to_paint = robot.Advance(color);
+      if (!to_paint) {
+        break;
+      }
+      grid[pos] = *to_paint;
+    }
+
+    for (auto y = min_coord.y; y <= max_coord.y; ++y) {
+      for (auto x = max_coord.x; x >= min_coord.x; --x) {
+        auto const c = GetColor2({x, y});
+        std::cout << ((c == Color::White) ? "#" : ".");
+      }
+      std::cout << "\n";
+    }
+  }
   return 0;
 }
 
