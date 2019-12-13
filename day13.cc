@@ -20,7 +20,7 @@ public:
   explicit Program(Memory const &memory)
       : memory_(memory), pos_(0), relative_base_(0), state_(Signal::INT) {}
 
-  std::tuple<Signal, int64_t> Execute(std::deque<int64_t> *inputs) {
+  std::tuple<Signal, int64_t> Execute(int *input) {
     if (state_ != Signal::INT) {
       return std::make_tuple(state_, 0);
     }
@@ -47,8 +47,8 @@ public:
       }
       case 3: {
         auto const output_pos = GetParamAddress(1, instruction);
-        WriteMemory(output_pos, inputs->front());
-        inputs->pop_front();
+        WriteMemory(output_pos, *input);
+        *input = 0;
         break;
       }
       case 4: {
@@ -144,40 +144,93 @@ private:
   Signal state_;
 }; // class Program
 
+enum TileId {
+  kEmpty = 0,
+  kWall = 1,
+  kBlock = 2,
+  kPaddle = 3,
+  kBall = 4,
+};
+
 int main() {
-  Memory memory;
+  Memory memory_orig;
   {
     std::string token;
     while (std::getline(std::cin, token, ',')) {
       auto instruction = std::stol(token);
-      memory.push_back(instruction);
+      memory_orig.push_back(instruction);
     }
   }
 
   auto const kWidth = 37;
   auto const kHeight = 26;
-  std::vector<int> screen(kWidth * kHeight, 0);
+  int paddle_pos = 0;
+  int ball_pos = 0;
+  {
+    int block_count = 0;
+    Memory memory{memory_orig};
+    Program game{memory};
+    while (true) {
+      auto r1 = game.Execute({});
+      auto const s1 = std::get<0>(r1);
+      if (s1 == Signal::END) {
+        break;
+      }
+      auto r2 = game.Execute({});
+      auto r3 = game.Execute({});
 
-  int block_count = 0;
-  Program game{memory};
-  while (true) {
-    auto r1 = game.Execute({});
-    auto const s1 = std::get<0>(r1);
-    if (s1 == Signal::END) {
-      break;
+      auto const x = std::get<1>(r1);
+      auto const y = std::get<1>(r2);
+      auto const tile_id = std::get<1>(r3);
+
+      if (tile_id == kBlock) {
+        ++block_count;
+      } else if (tile_id == kBall) {
+        ball_pos = x;
+      } else if (tile_id == kPaddle) {
+        paddle_pos = x;
+      }
     }
-    auto r2 = game.Execute({});
-    auto r3 = game.Execute({});
-
-    auto const x = std::get<1>(r1);
-    auto const y = std::get<1>(r2);
-    auto const tile_id = std::get<1>(r3);
-
-    if (tile_id == 2) {
-      ++block_count;
-    }
+    std::cout << block_count << "\n";
   }
-  std::cout << block_count << "\n";
+  {
+    Memory memory{memory_orig};
+    memory[0] = 2;
+    Program game{memory};
+
+    int score = 0;
+    int joystick = 0;
+
+    while (true) {
+      auto r1 = game.Execute(&joystick);
+      auto const s1 = std::get<0>(r1);
+      if (s1 == Signal::END) {
+        break;
+      }
+      auto r2 = game.Execute(&joystick);
+      auto r3 = game.Execute(&joystick);
+
+      auto const x = std::get<1>(r1);
+      auto const y = std::get<1>(r2);
+      auto const tile_id = std::get<1>(r3);
+      if (x == -1 && y == 0) {
+        score = tile_id;
+        continue;
+      }
+      if (tile_id == kBall) {
+        ball_pos = x;
+        if (paddle_pos > ball_pos) {
+          joystick = -1;
+        } else if (paddle_pos < ball_pos) {
+          joystick = 1;
+        }
+      }
+      if (tile_id == kPaddle) {
+        paddle_pos = x;
+      }
+    }
+    std::cout << score << "\n";
+  }
   return 0;
 }
 
