@@ -8,14 +8,14 @@
 using Name = std::string;
 struct Part {
   Name name;
-  int quantity;
+  int64_t quantity;
 };
 
 Part ParseChemicalAndQuantity(std::string const &token) {
   auto const d = token.find_first_of(" ");
   auto t0 = token.substr(0, d);
   auto t1 = token.substr(d + 1);
-  return {t1, std::stoi(t0)};
+  return {t1, std::stol(t0)};
 }
 
 std::vector<Part> ParseChemicals(std::string const &token) {
@@ -31,16 +31,17 @@ std::vector<Part> ParseChemicals(std::string const &token) {
 }
 
 struct Recipe {
-  int quantity;
+  int64_t quantity;
   std::vector<Part> parts;
 };
 
-uint64_t MakeFuel(int fuel_count, std::unordered_map<Name, Recipe> const & recipes) {
-  uint64_t ore_count = 0;
+int64_t MakeFuel(int64_t fuel_count,
+                  std::unordered_map<Name, Recipe> const &recipes) {
+  int64_t ore_count = 0;
   std::deque<Part> to_check;
   to_check.push_back({"FUEL", fuel_count});
 
-  std::unordered_map<Name, int> spare_chemicals;
+  std::unordered_map<Name, int64_t> spare_chemicals;
 
   while (!to_check.empty()) {
     auto need = to_check.front();
@@ -53,8 +54,8 @@ uint64_t MakeFuel(int fuel_count, std::unordered_map<Name, Recipe> const & recip
 
     auto const it = spare_chemicals.find(need.name);
     auto const spare = ((it != spare_chemicals.end()) ? it->second : 0);
-    auto const to_create = std::max(0, need.quantity - spare);
-    spare_chemicals[need.name] = std::max(0, spare - need.quantity);
+    auto const to_create = std::max<int64_t>(0, need.quantity - spare);
+    spare_chemicals[need.name] = std::max<int64_t>(0, spare - need.quantity);
     if (to_create <= 0) {
       continue;
     }
@@ -90,7 +91,23 @@ int main() {
     recipes.emplace(p0.name, Recipe{p0.quantity, input_chemicals});
   }
 
-  uint64_t ore_count = MakeFuel(1, recipes);
+  int64_t ore_count = MakeFuel(1, recipes);
   std::cout << ore_count << "\n";
+
+  int64_t const kMinedOre = 1000000000000;
+  int64_t l = 0;
+  int64_t r = kMinedOre;
+  int64_t result;
+  while (l <= r) {
+    int64_t const m = std::floor((r + l) / 2);
+    int64_t const ore = MakeFuel(m, recipes);
+    if (ore < kMinedOre) {
+      result = m;
+      l = m + 1;
+    } else if (ore >= kMinedOre) {
+      r = m - 1;
+    }
+  }
+  std::cout << result << "\n";
   return 0;
 }
