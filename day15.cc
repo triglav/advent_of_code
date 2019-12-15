@@ -251,25 +251,15 @@ private:
   int64_t steps_;
 }; // Robot
 
-int main() {
-  Memory memory;
-  {
-    std::string token;
-    while (std::getline(std::cin, token, ',')) {
-      auto instruction = std::stol(token);
-      memory.push_back(instruction);
-    }
-  }
+Robot FindOxygen(Memory const &memory) {
   Grid grid;
   grid[{0, 0}] = 0;
-
   std::deque<Robot> to_check;
   to_check.push_back(Robot{memory});
   while (!to_check.empty()) {
     auto r = to_check.front();
     to_check.pop_front();
 
-    bool f = false;
     for (auto i : inputs) {
       auto r1 = r;
       auto const x = r1.Walk(&grid, i);
@@ -279,13 +269,43 @@ int main() {
       }
       if (x == ResultCode::Found) {
         std::cout << r1.steps() << "\n";
-        f = true;
-        break;
+        return r1;
       }
     }
-    if (f) {
-      break;
+  }
+  exit(1);
+}
+
+int main() {
+  Memory memory;
+  {
+    std::string token;
+    while (std::getline(std::cin, token, ',')) {
+      auto instruction = std::stol(token);
+      memory.push_back(instruction);
     }
   }
+  auto const robot_at_oxygen = FindOxygen(memory);
+  auto const oxygen = robot_at_oxygen.pos();
+  Grid grid;
+  grid[robot_at_oxygen.pos()] = 0;
+  std::deque<Robot> to_check;
+  to_check.push_back(robot_at_oxygen);
+  int64_t minutes = 0;
+  while (!to_check.empty()) {
+    auto r = to_check.front();
+    to_check.pop_front();
+
+    for (auto i : inputs) {
+      auto r1 = r;
+      auto const x = r1.Walk(&grid, i);
+      if (x == ResultCode::CarryOn) {
+        minutes = std::max(minutes, r1.steps());
+        to_check.push_back(r1);
+        continue;
+      }
+    }
+  }
+  std::cout << minutes - robot_at_oxygen.steps() << "\n";
   return 0;
 }
