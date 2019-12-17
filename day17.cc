@@ -22,7 +22,7 @@ public:
   explicit Program(Memory const &memory)
       : memory_(memory), pos_(0), relative_base_(0), state_(Signal::INT) {}
 
-  std::tuple<Signal, int64_t> Execute(int input) {
+  std::tuple<Signal, int64_t> Execute(std::deque<char> *inputs) {
     if (state_ != Signal::INT) {
       return std::make_tuple(state_, 0);
     }
@@ -49,7 +49,8 @@ public:
       }
       case 3: {
         auto const output_pos = GetParamAddress(1, instruction);
-        WriteMemory(output_pos, input);
+        WriteMemory(output_pos, inputs->front());
+        inputs->pop_front();
         break;
       }
       case 4: {
@@ -163,37 +164,68 @@ int main() {
       memory.push_back(instruction);
     }
   }
-  Program program{memory};
+  {
+    Program program{memory};
 
-  std::vector<char> grid;
-  int width = 0;
-  int height = 0;
-  while (true) {
-    auto const [s, v] = program.Execute(0);
-    if (s == Signal::END) {
-      break;
-    }
-    if (s == Signal::ERR) {
-      std::cerr << "oops\n";
-      break;
-    }
-    auto const c = static_cast<char>(v);
-    if (c != '\n') {
-      grid.push_back(c);
-    } else if (width == 0) {
-      width = grid.size();
-    }
-  }
-  height = grid.size() / width;
-
-  int64_t s = 0;
-  for (int y = 1; y < height - 1; ++y) {
-    for (int x = 1; x < width - 1; ++x) {
-      if (IsIntersection(grid, width, x, y)) {
-        s += x * y;
+    std::vector<char> grid;
+    int width = 0;
+    int height = 0;
+    while (true) {
+      auto const [s, v] = program.Execute(0);
+      if (s == Signal::END) {
+        break;
+      }
+      if (s == Signal::ERR) {
+        std::cerr << "oops\n";
+        break;
+      }
+      auto const c = static_cast<char>(v);
+      if (c != '\n') {
+        grid.push_back(c);
+      } else if (width == 0) {
+        width = grid.size();
       }
     }
+    height = grid.size() / width;
+
+    int64_t s = 0;
+    for (int y = 1; y < height - 1; ++y) {
+      for (int x = 1; x < width - 1; ++x) {
+        if (IsIntersection(grid, width, x, y)) {
+          s += x * y;
+        }
+      }
+    }
+    std::cout << s << "\n";
   }
-  std::cout << s << "\n";
+  {
+    auto memory2 = memory;
+    memory2[0] = 2;
+    Program program{memory2};
+
+    std::deque<char> inputs;
+    for (auto c : "A,B,B,A,C,B,C,C,B,A\n"
+                  "R,10,R,8,L,10,L,10\n"
+                  "R,8,L,6,L,6\n"
+                  "L,10,R,10,L,6\n"
+                  "n\n") {
+      inputs.push_back(c);
+    }
+    int64_t r;
+    while (true) {
+      auto const [s, v] = program.Execute(&inputs);
+      if (s == Signal::END) {
+        break;
+      }
+      if (s == Signal::ERR) {
+        std::cerr << "oops\n";
+        break;
+      }
+      if (v > 256) {
+        r = v;
+      }
+    }
+    std::cout << r << "\n";
+  }
   return 0;
 }
