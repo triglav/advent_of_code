@@ -72,13 +72,11 @@ int64_t Search(Map const &m) {
     auto const i = e.y * m.width + e.x;
     auto const c = m.tiles[i];
 
-    // std::cout << "["<<e.x<<","<<e.y<<"]: "<<c<<"\n";
-
     if (c == '#') {
       continue;
     }
     if (c >= 'A' && c <= 'Z') {
-      if (!e.keys.test(c - 'A')) {
+      if (keys_to_find.test(c - 'A') && !e.keys.test(c - 'A')) {
         continue;
       }
     }
@@ -102,9 +100,47 @@ int64_t Search(Map const &m) {
   return min_steps;
 }
 
+Map CutMap(Map const &map, size_t x, size_t y, size_t width, size_t height) {
+  Map map2;
+  map2.width = width;
+  map2.height = height;
+  for (auto yy = y; yy < y + height; ++yy) {
+    for (auto xx = x; xx < x + width; ++xx) {
+      map2.tiles.push_back(map.tiles[yy * map.width + xx]);
+    }
+  }
+  return map2;
+}
+
 int main() {
   auto const map = ReadInput();
   auto min_steps = Search(map);
   std::cout << min_steps << "\n";
+  {
+    auto center =
+        std::find(map.tiles.begin(), map.tiles.end(), '@') - map.tiles.begin();
+    auto x = center % map.width;
+    auto y = center / map.width;
+
+    auto closed_map = map;
+    closed_map.tiles[center] = '#';
+    closed_map.tiles[center + 1] = '#';
+    closed_map.tiles[center - 1] = '#';
+    closed_map.tiles[center + map.width] = '#';
+    closed_map.tiles[center - map.width] = '#';
+
+    closed_map.tiles[center + map.width + 1] = '@';
+    closed_map.tiles[center + map.width - 1] = '@';
+    closed_map.tiles[center - map.width + 1] = '@';
+    closed_map.tiles[center - map.width - 1] = '@';
+
+    auto map1 = CutMap(closed_map, 0, 0, x + 1, y + 1);
+    auto map2 = CutMap(closed_map, x, 0, x + 1, y + 1);
+    auto map3 = CutMap(closed_map, 0, y, x + 1, y + 1);
+    auto map4 = CutMap(closed_map, x, y, x + 1, y + 1);
+
+    auto r = Search(map1) + Search(map2) + Search(map3) + Search(map4);
+    std::cout << r << "\n";
+  }
   return 0;
 }
