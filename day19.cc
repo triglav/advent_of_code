@@ -1,12 +1,9 @@
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <deque>
 #include <iostream>
-#include <optional>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 using Memory = std::vector<int64_t>;
@@ -22,7 +19,7 @@ public:
   explicit Program(Memory const &memory)
       : memory_(memory), pos_(0), relative_base_(0), state_(Signal::INT) {}
 
-  std::tuple<Signal, int64_t> Execute(std::deque<char> *inputs) {
+  std::tuple<Signal, int64_t> Execute(std::deque<int64_t> *inputs) {
     if (state_ != Signal::INT) {
       return std::make_tuple(state_, 0);
     }
@@ -156,22 +153,48 @@ int main() {
     }
   }
 
-  int affected_count = 0;
-  int const kWidth = 50;
-  int const kHeight = 50;
-  for (int y = 0; y < kHeight; ++y) {
-    for (int x = 0; x < kWidth; ++x) {
-      std::deque<char> inputs;
-      inputs.push_back(x);
-      inputs.push_back(y);
+  auto IsPulled = [&memory](int64_t x, int64_t y) -> bool {
+    std::deque<int64_t> inputs;
+    inputs.push_back(x);
+    inputs.push_back(y);
 
-      Program program{memory};
-      auto const [s, v] = program.Execute(&inputs);
-      if (v == 1) {
-        ++affected_count;
+    Program program{memory};
+    auto const [s, v] = program.Execute(&inputs);
+    return v == 1;
+  };
+
+  int affected_count = 0;
+  {
+    int const kWidth = 50;
+    int const kHeight = 50;
+    for (int64_t y = 0; y < kHeight; ++y) {
+      for (int64_t x = 0; x < kWidth; ++x) {
+        if (IsPulled(x, y)) {
+          ++affected_count;
+        }
       }
     }
+    std::cout << affected_count << "\n";
   }
-  std::cout << affected_count << "\n";
+  {
+    int64_t kSize = 99;
+    int64_t x = 50;
+    int64_t y = 0;
+    while (true) {
+      while (!IsPulled(x, y)) {
+        ++y;
+      }
+      while (IsPulled(x, y + 1)) {
+        ++y;
+      }
+      if (y >= kSize && IsPulled(x, y) && IsPulled(x, y - kSize) &&
+          IsPulled(x + kSize, y) && IsPulled(x + kSize, y - kSize)) {
+        y -= kSize;
+        break;
+      }
+      ++x;
+    }
+    std::cout << x * 10000 + y << "\n";
+  }
   return 0;
 }
