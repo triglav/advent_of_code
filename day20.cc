@@ -27,6 +27,10 @@ template <> struct hash<Coord> {
 
 using Portal = std::string;
 
+bool IsOuterPortal(Coord const &c, int width, int height) {
+  return c.x == 2 || c.x == width - 3 || c.y == 2 || c.y == height - 3;
+}
+
 void RegisterPortal(
     std::unordered_map<Portal, std::pair<Coord, Coord>> *portals,
     std::unordered_map<Coord, Portal> *portals_reverse, Portal const &p,
@@ -135,6 +139,76 @@ Search(std::vector<char> const &map,
   return -1;
 }
 
+int64_t
+Search2(std::vector<char> const &map,
+        std::unordered_map<Portal, std::pair<Coord, Coord>> const &portals,
+        std::unordered_map<Coord, Portal> const &portals_reverse, int width,
+        int height) {
+  std::vector<std::vector<int64_t>> grid(1,
+                                         std::vector<int64_t>(map.size(), -1));
+
+  std::deque<std::pair<Coord, int>> to_check;
+  auto const start_pos = portals.at("AA").first;
+  auto const end_pos = portals.at("ZZ").first;
+  to_check.emplace_back(start_pos, 0);
+  grid[0][start_pos.y * width + start_pos.x] = 0;
+
+  auto Step = [&map, &grid, &to_check, width](Coord c, int level,
+                                              int64_t steps) {
+    auto const i = c.y * width + c.x;
+    if (map[i] != '.' && map[i] != 'p') {
+      return;
+    }
+
+    while (grid.size() <= level) {
+      grid.push_back(std::vector<int64_t>(map.size(), -1));
+    }
+
+    if (grid[level][i] != -1 && grid[level][i] <= steps + 1) {
+      return;
+    }
+    grid[level][i] = steps + 1;
+    to_check.emplace_back(c, level);
+  };
+
+  while (!to_check.empty()) {
+    auto const pos = to_check.front().first;
+    auto const level = to_check.front().second;
+    to_check.pop_front();
+
+    auto const i = pos.y * width + pos.x;
+    auto const s = grid[level][i];
+
+    if (map[i] == 'p') {
+      auto const portal = portals_reverse.at(pos);
+      auto const &portal_coords = portals.at(portal);
+      auto const &c = ((portal_coords.first == pos) ? portal_coords.second
+                                                    : portal_coords.first);
+      if (portal == "ZZ") {
+        if (level == 0) {
+          return s;
+        }
+      } else if (portal != "AA") {
+        if (level == 0) {
+          if (!IsOuterPortal(pos, width, height)) {
+            Step(c, level + 1, s);
+          }
+        } else {
+          auto const next_level =
+              level + (IsOuterPortal(pos, width, height) ? -1 : 1);
+          Step(c, next_level, s);
+        }
+      }
+    }
+
+    Step({pos.x + 1, pos.y}, level, s);
+    Step({pos.x - 1, pos.y}, level, s);
+    Step({pos.x, pos.y + 1}, level, s);
+    Step({pos.x, pos.y - 1}, level, s);
+  }
+  return -1;
+}
+
 int main() {
   std::vector<char> map;
   int width;
@@ -157,7 +231,13 @@ int main() {
     }
   }
 
-  auto const s = Search(map, portals, portals_reverse, width);
-  std::cout << s << "\n";
+  {
+    auto const s = Search(map, portals, portals_reverse, width);
+    std::cout << s << "\n";
+  }
+  {
+    auto const s = Search2(map, portals, portals_reverse, width, height);
+    std::cout << s << "\n";
+  }
   return 0;
 }
