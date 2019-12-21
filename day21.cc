@@ -181,5 +181,38 @@ int main() {
       }
     }
   }
+  {
+    Program program{memory};
+
+    std::deque<char> inputs;
+    for (auto c : "OR A J\n"
+                  "AND B J\n"
+                  "AND C J\n"
+                  "NOT J J\n"
+                  "AND D J\n"
+
+                  "OR E T\n"
+                  "OR H T\n"
+                  "AND T J\n"
+
+                  "RUN\n") {
+      inputs.push_back(c);
+    }
+    while (true) {
+      auto const [s, v] = program.Execute(&inputs);
+      if (s == Signal::END) {
+        break;
+      }
+      if (s == Signal::ERR) {
+        std::cerr << "oops\n";
+        break;
+      }
+      if (v > 256) {
+        std::cout << v << "\n";
+      } else {
+        std::cout << (char)v;
+      }
+    }
+  }
   return 0;
 }
