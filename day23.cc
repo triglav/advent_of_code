@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <deque>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -157,39 +159,94 @@ int main() {
       memory.push_back(instruction);
     }
   }
-  std::vector<Program> nic(50, Program{memory});
-  std::vector<std::deque<int64_t>> inputs(nic.size());
-  for (int i = 0; i < nic.size(); ++i) {
-    inputs[i].push_back(i);
-    inputs[i].push_back(-1);
-  }
-  while (true) {
+  {
+    std::vector<Program> nic(50, Program{memory});
+    std::vector<std::deque<int64_t>> inputs(nic.size());
     for (int i = 0; i < nic.size(); ++i) {
-      auto const [s, v] = nic[i].Execute(&inputs[i]);
-      if (s == Signal::END) {
-        std::cout << "end\n";
-        exit(0);
-      }
-      if (s == Signal::ERR) {
-        std::cerr << "oops\n";
-        exit(1);
-      }
-      auto const [sx, x] = nic[i].Execute(&inputs[i]);
-      auto const [sy, y] = nic[i].Execute(&inputs[i]);
-      if (v == -1) {
-        continue;
-      }
-      // std::cout << i << ": [" << v << "] <- ";
-      // std::cout << x << ", ";
-      // std::cout << y << "\n";
-      assert((v >= 0 && v < nic.size()) || v == 255);
+      inputs[i].push_back(i);
+      inputs[i].push_back(-1);
+    }
+    bool done = false;
+    while (!done) {
+      for (int i = 0; i < nic.size(); ++i) {
+        auto const [s, v] = nic[i].Execute(&inputs[i]);
+        if (s == Signal::END) {
+          std::cout << "end\n";
+          exit(0);
+        }
+        if (s == Signal::ERR) {
+          std::cerr << "oops\n";
+          exit(1);
+        }
+        auto const [sx, x] = nic[i].Execute(&inputs[i]);
+        auto const [sy, y] = nic[i].Execute(&inputs[i]);
+        if (v == -1) {
+          continue;
+        }
+        assert((v >= 0 && v < nic.size()) || v == 255);
 
-      if (v == 255) {
-        std::cout << y << "\n";
-        exit(0);
-      } else {
-        inputs[v].push_back(x);
-        inputs[v].push_back(y);
+        if (v == 255) {
+          std::cout << y << "\n";
+          done = true;
+          break;
+        } else {
+          inputs[v].push_back(x);
+          inputs[v].push_back(y);
+        }
+      }
+    }
+  }
+  {
+    std::vector<Program> nic(50, Program{memory});
+    std::vector<std::deque<int64_t>> inputs(nic.size());
+
+    std::optional<int64_t> nat_x_previous;
+    std::optional<int64_t> nat_y_previous;
+
+    int64_t nat_x;
+    int64_t nat_y;
+    for (int i = 0; i < nic.size(); ++i) {
+      inputs[i].push_back(i);
+      inputs[i].push_back(-1);
+    }
+    while (true) {
+      for (int i = 0; i < nic.size(); ++i) {
+        auto const [s, v] = nic[i].Execute(&inputs[i]);
+        if (s == Signal::END) {
+          std::cout << "end\n";
+          exit(0);
+        }
+        if (s == Signal::ERR) {
+          std::cerr << "oops\n";
+          exit(1);
+        }
+        auto const [sx, x] = nic[i].Execute(&inputs[i]);
+        auto const [sy, y] = nic[i].Execute(&inputs[i]);
+        if (v == -1) {
+          continue;
+        }
+        assert((v >= 0 && v < nic.size()) || v == 255);
+
+        if (v == 255) {
+          nat_x = x;
+          nat_y = y;
+        } else {
+          inputs[v].push_back(x);
+          inputs[v].push_back(y);
+        }
+      }
+      if (std::all_of(inputs.begin(), inputs.end(),
+                      [](std::deque<int64_t> const &i) { return i.empty(); })) {
+        inputs[0].push_back(nat_x);
+        inputs[0].push_back(nat_y);
+
+        if (nat_x_previous.has_value() && nat_y_previous.has_value() &&
+            *nat_x_previous == nat_x && *nat_y_previous == nat_y) {
+          std::cout << nat_y << "\n";
+          exit(0);
+        }
+        nat_x_previous = nat_x;
+        nat_y_previous = nat_y;
       }
     }
   }
