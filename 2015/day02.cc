@@ -5,6 +5,7 @@
 
 int main() {
   int paper = 0;
+  int ribbon = 0;
 
   std::string line;
   while (std::getline(std::cin, line)) {
@@ -19,13 +20,18 @@ int main() {
     auto const h = std::stoi(token);
 
     paper += 2 * l * w + 2 * l * h + 2 * w * h;
+    ribbon += l * w * h;
 
     if (l < w) {
-      paper += l * std::min(w, h);
+      auto const x = std::min(w, h);
+      paper += l * x;
+      ribbon += 2 * l + 2 * x;
     } else {
-      paper += w * std::min(l, h);
+      auto const x = std::min(l, h);
+      paper += w * x;
+      ribbon += 2 * w + 2 * x;
     }
   }
-  std::cout << paper << "\n";
+  std::cout << paper << "\n" << ribbon << "\n";
   return 0;
 }
