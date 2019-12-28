@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <array>
 #include <bitset>
 #include <cassert>
 #include <charconv>
@@ -40,7 +42,7 @@ std::pair<Coord, Coord> ParseRange(std::string_view s) {
 auto const kSize = 1000;
 using Lights = std::bitset<kSize * kSize>;
 
-void TurnOn(Lights * lights, Coord const & p1, Coord const & p2) {
+void TurnOn(Lights *lights, Coord const &p1, Coord const &p2) {
   for (int y = p1.y; y <= p2.y; ++y) {
     for (int x = p1.x; x <= p2.x; ++x) {
       lights->set(y * kSize + x);
@@ -48,7 +50,7 @@ void TurnOn(Lights * lights, Coord const & p1, Coord const & p2) {
   }
 }
 
-void TurnOff(Lights * lights, Coord const & p1, Coord const & p2) {
+void TurnOff(Lights *lights, Coord const &p1, Coord const &p2) {
   for (int y = p1.y; y <= p2.y; ++y) {
     for (int x = p1.x; x <= p2.x; ++x) {
       lights->reset(y * kSize + x);
@@ -56,7 +58,7 @@ void TurnOff(Lights * lights, Coord const & p1, Coord const & p2) {
   }
 }
 
-void Toggle(Lights * lights, Coord const & p1, Coord const & p2) {
+void Toggle(Lights *lights, Coord const &p1, Coord const &p2) {
   for (int y = p1.y; y <= p2.y; ++y) {
     for (int x = p1.x; x <= p2.x; ++x) {
       lights->flip(y * kSize + x);
@@ -64,28 +66,49 @@ void Toggle(Lights * lights, Coord const & p1, Coord const & p2) {
   }
 }
 
+using DimmableLights = std::array<int, kSize * kSize>;
+
+void Adjust(DimmableLights *lights, Coord const &p1, Coord const &p2, int v) {
+  for (int y = p1.y; y <= p2.y; ++y) {
+    for (int x = p1.x; x <= p2.x; ++x) {
+      auto const v0 = (*lights)[y * kSize + x];
+      (*lights)[y * kSize + x] = std::max(0, v0 + v);
+    }
+  }
+}
+
 int main() {
   Lights lights{false};
+  DimmableLights dimmable_lights{0};
 
   std::string line;
   while (std::getline(std::cin, line)) {
     if (line.rfind("turn on ", 0) == 0) {
       auto range = ParseRange(line.substr(8));
       TurnOn(&lights, range.first, range.second);
+      Adjust(&dimmable_lights, range.first, range.second, 1);
       continue;
     }
     if (line.rfind("turn off ", 0) == 0) {
       auto range = ParseRange(line.substr(9));
       TurnOff(&lights, range.first, range.second);
+      Adjust(&dimmable_lights, range.first, range.second, -1);
       continue;
     }
     if (line.rfind("toggle ", 0) == 0) {
       auto range = ParseRange(line.substr(7));
       Toggle(&lights, range.first, range.second);
+      Adjust(&dimmable_lights, range.first, range.second, 2);
       continue;
     }
     assert(false);
   }
   std::cout << lights.count() << "\n";
+
+  int light = 0;
+  for (auto i : dimmable_lights) {
+    light += i;
+  }
+  std::cout << light << "\n";
   return 0;
 }
