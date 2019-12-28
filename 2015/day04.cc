@@ -29,5 +29,12 @@ int main() {
       break;
     }
   }
+  for (int i = 1000000; i < 9999999; ++i) {
+    auto hash = md5(secret, i);
+    if (hash.rfind("000000", 0) == 0) {
+      std::cout << i << "\n";
+      break;
+    }
+  }
   return 0;
 }
