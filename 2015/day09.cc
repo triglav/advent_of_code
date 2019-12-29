@@ -28,9 +28,10 @@ template <typename T> std::vector<T> Without(std::vector<T> v, T value) {
 
 void SearchStep(Graph const &graph, std::vector<std::string> const &towns,
                 std::string const &current_town, int distance,
-                int *min_distance) {
+                int *min_distance, int *max_distance) {
   if (towns.empty()) {
     *min_distance = std::min(*min_distance, distance);
+    *max_distance = std::max(*max_distance, distance);
     return;
   }
 
@@ -38,22 +39,24 @@ void SearchStep(Graph const &graph, std::vector<std::string> const &towns,
   for (auto const &t : towns) {
     assert(t != current_town);
     auto towns2 = Without(towns, t);
-    SearchStep(graph, towns2, t, distance + ds.at(t), min_distance);
+    SearchStep(graph, towns2, t, distance + ds.at(t), min_distance,
+               max_distance);
   }
 }
 
-int Search(Graph const &graph) {
+std::pair<int, int> Search(Graph const &graph) {
   std::vector<std::string> all_towns;
   for (auto const &t : graph) {
     all_towns.push_back(t.first);
   }
 
   int min_distance = std::numeric_limits<int>::max();
+  int max_distance = 0;
   for (auto const &t : all_towns) {
     auto towns2 = Without(all_towns, t);
-    SearchStep(graph, towns2, t, 0, &min_distance);
+    SearchStep(graph, towns2, t, 0, &min_distance, &max_distance);
   }
-  return min_distance;
+  return {min_distance, max_distance};
 }
 
 int main() {
@@ -70,7 +73,7 @@ int main() {
     InsertPath(&graph, t0, t1, d);
     InsertPath(&graph, t1, t0, d);
   }
-  auto min_distance = Search(graph);
-  std::cout << min_distance << "\n";
+  auto distance = Search(graph);
+  std::cout << distance.first << "\n" << distance.second << "\n";
   return 0;
 }
