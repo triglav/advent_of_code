@@ -178,4 +178,14 @@ int main() {
   Buffer value_buffer;
   auto r = Evaluate(circuit, "a", &value_buffer);
   std::cout << r << "\n";
+
+  auto circuit2 = circuit;
+  Command c;
+  c.type = CommandType::Value;
+  c.params.push_back(r);
+  circuit2["b"] = c;
+
+  Buffer value_buffer2;
+  auto r2 = Evaluate(circuit2, "a", &value_buffer2);
+  std::cout << r2 << "\n";
 }
