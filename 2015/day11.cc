@@ -51,5 +51,8 @@ int main() {
   std::string p0 = "hxbxwxba";
   auto p = FindNextPassword(p0);
   std::cout << p << "\n";
+
+  auto p2 = FindNextPassword(p);
+  std::cout << p2 << "\n";
   return 0;
 }
