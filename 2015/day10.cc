@@ -29,5 +29,9 @@ int main() {
     s = Transform(s);
   }
   std::cout << s.size() << "\n";
+  for (int i = 0; i < 10; ++i) {
+    s = Transform(s);
+  }
+  std::cout << s.size() << "\n";
   return 0;
 }
