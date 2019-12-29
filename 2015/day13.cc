@@ -49,13 +49,31 @@ int main() {
 
     InsertData(&attendees, n1, n2, v);
   }
-  auto v = GetVariationsRound(Keys(attendees));
 
-  int max_happiness = std::numeric_limits<int>::min();
-  for (auto const &v2 : v) {
-    auto const h = CalculateHappiness(attendees, v2);
-    max_happiness = std::max(max_happiness, h);
+  {
+    auto v = GetVariationsRound(Keys(attendees));
+    int max_happiness = std::numeric_limits<int>::min();
+    for (auto const &v2 : v) {
+      auto const h = CalculateHappiness(attendees, v2);
+      max_happiness = std::max(max_happiness, h);
+    }
+    std::cout << max_happiness << "\n";
   }
-  std::cout << max_happiness << "\n";
+  {
+    std::string const me = "myself";
+    auto const keys = Keys(attendees);
+    for (auto const &k : keys) {
+      InsertData(&attendees, me, k, 0);
+      InsertData(&attendees, k, me, 0);
+    }
+
+    auto v = GetVariationsRound(Keys(attendees));
+    int max_happiness = std::numeric_limits<int>::min();
+    for (auto const &v2 : v) {
+      auto const h = CalculateHappiness(attendees, v2);
+      max_happiness = std::max(max_happiness, h);
+    }
+    std::cout << max_happiness << "\n";
+  }
   return 0;
 }
