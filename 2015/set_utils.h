@@ -55,3 +55,27 @@ GetVariationsRound(std::vector<T> const &all_items) {
   return v;
 }
 
+namespace detail {
+template <typename T>
+void CombinationStep(std::vector<T> const &all_items, int start,
+                     int remaining_count, std::vector<T> const &current,
+                     std::vector<std::vector<T>> *combinations) {
+  if (remaining_count <= 0) {
+    combinations->push_back(current);
+    return;
+  }
+
+  for (int i = start; i < all_items.size(); ++i) {
+    CombinationStep(all_items, i, remaining_count - 1,
+                    With(current, all_items[i]), combinations);
+  }
+}
+} // namespace detail
+
+template <typename T>
+std::vector<std::vector<T>> GetCombinations(std::vector<T> const &all_items,
+                                            int set_size) {
+  std::vector<std::vector<T>> combinations;
+  detail::CombinationStep(all_items, 0, set_size, {}, &combinations);
+  return combinations;
+}
