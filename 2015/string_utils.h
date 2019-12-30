@@ -12,7 +12,8 @@ template <typename T> T sv2number(std::string_view s) {
   return number;
 }
 
-std::vector<std::string_view> SplitString(std::string_view s, char delimiter = ' ') {
+std::vector<std::string_view> SplitString(std::string_view s,
+                                          char delimiter = ' ') {
   std::vector<std::string_view> r;
   size_t p0 = 0;
   size_t p1 = s.find(delimiter);
@@ -28,3 +29,14 @@ std::vector<std::string_view> SplitString(std::string_view s, char delimiter = '
   return r;
 }
 
+std::string_view Trim(std::string_view s, std::string_view chars) {
+  auto start = 0;
+  auto end = s.size();
+  while (chars.find_first_of(s[start]) != std::string::npos) {
+    ++start;
+  }
+  while (chars.find_first_of(s[end - 1]) != std::string::npos) {
+    --end;
+  }
+  return s.substr(start, end - start);
+}
