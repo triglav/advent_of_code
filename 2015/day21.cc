@@ -74,6 +74,7 @@ int main() {
   }
 
   int min_cost = std::numeric_limits<int>::max();
+  int max_cost = 0;
   for (auto const &w : weapons_in_shop) {
     for (auto const &a : armor) {
       for (auto const &ring_option : rings) {
@@ -84,12 +85,18 @@ int main() {
         for (auto const &ring : ring_option) {
           cost += EquipItem(&player, ring);
         }
-        if (min_cost > cost && SimulateFight(player, boss)) {
-          min_cost = cost;
+        if (SimulateFight(player, boss)) {
+          if (min_cost > cost) {
+            min_cost = cost;
+          }
+        } else {
+          if (max_cost < cost) {
+            max_cost = cost;
+          }
         }
       }
     }
   }
-  std::cout << min_cost << "\n";
+  std::cout << min_cost << "\n" << max_cost << "\n";
   return 0;
 }
