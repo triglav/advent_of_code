@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <string>
@@ -17,6 +18,16 @@ std::set<std::string> Replace(std::string const &molecule,
     p0 = p + 1;
   }
   return r;
+}
+
+int CountElements(std::string_view s, std::string_view subs) {
+  int count = 0;
+  auto p = s.find(subs, 0);
+  while (p != std::string::npos) {
+    ++count;
+    p = s.find(subs, p + subs.length());
+  }
+  return count;
 }
 
 int main() {
@@ -40,5 +51,15 @@ int main() {
     molecules.merge(new_molecules);
   }
   std::cout << molecules.size() << "\n";
+
+  auto const count_all =
+      std::count_if(molecule.begin(), molecule.end(),
+                    [](char c) { return c >= 'A' && c <= 'Z'; });
+
+  auto const count_Rn = CountElements(molecule, "Rn");
+  auto const count_Ar = CountElements(molecule, "Ar");
+  auto const count_Y = CountElements(molecule, "Y");
+  auto const result = count_all - count_Rn - count_Ar - 2 * count_Y - 1;
+  std::cout << result << "\n";
   return 0;
 }
