@@ -59,23 +59,26 @@ namespace detail {
 template <typename T>
 void CombinationStep(std::vector<T> const &all_items, int start,
                      int remaining_count, std::vector<T> const &current,
-                     std::vector<std::vector<T>> *combinations) {
+                     std::vector<std::vector<T>> *combinations,
+                     bool repeating) {
   if (remaining_count <= 0) {
     combinations->push_back(current);
     return;
   }
 
   for (int i = start; i < all_items.size(); ++i) {
-    CombinationStep(all_items, i, remaining_count - 1,
-                    With(current, all_items[i]), combinations);
+    auto const next = (repeating ? i : (i + 1));
+    CombinationStep(all_items, next, remaining_count - 1,
+                    With(current, all_items[i]), combinations, repeating);
   }
 }
 } // namespace detail
 
 template <typename T>
 std::vector<std::vector<T>> GetCombinations(std::vector<T> const &all_items,
-                                            int set_size) {
+                                            int set_size,
+                                            bool repeating = true) {
   std::vector<std::vector<T>> combinations;
-  detail::CombinationStep(all_items, 0, set_size, {}, &combinations);
+  detail::CombinationStep(all_items, 0, set_size, {}, &combinations, repeating);
   return combinations;
 }
