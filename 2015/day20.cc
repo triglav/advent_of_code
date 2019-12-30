@@ -1,5 +1,6 @@
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 int64_t CalculatePresents(int64_t house) {
   int64_t count = 0;
@@ -26,5 +27,25 @@ int main() {
     ++house;
   }
   std::cout << house << "\n";
+
+  {
+    std::vector<int64_t> houses;
+    for (int64_t elf = 1;; ++elf) {
+      auto const presents = elf * 11;
+      for (int i = 1; i <= 50; ++i) {
+        auto const house = elf * i;
+        if (houses.size() <= house) {
+          houses.resize(house+1, 0);
+        }
+        houses[house] += presents;
+      }
+
+      if (houses[elf] >= kRequiredPresents) {
+        std::cout << elf << "\n";
+        break;
+      }
+    }
+  }
+
   return 0;
 }
