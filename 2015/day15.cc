@@ -13,20 +13,24 @@ struct Ingredient {
   int calories;
 };
 
-int CalculateCookieScore(std::vector<Ingredient const *> const &ingredients) {
+std::pair<int, int>
+CalculateCookieScore(std::vector<Ingredient const *> const &ingredients) {
   Ingredient mixture{0, 0, 0, 0, 0};
   for (auto i : ingredients) {
     mixture.capacity += i->capacity;
     mixture.durability += i->durability;
     mixture.flavor += i->flavor;
     mixture.texture += i->texture;
+    mixture.calories += i->calories;
   }
   mixture.capacity = std::max(0, mixture.capacity);
   mixture.durability = std::max(0, mixture.durability);
   mixture.flavor = std::max(0, mixture.flavor);
   mixture.texture = std::max(0, mixture.texture);
-  return mixture.capacity * mixture.durability * mixture.flavor *
-         mixture.texture;
+
+  auto const score =
+      mixture.capacity * mixture.durability * mixture.flavor * mixture.texture;
+  return {score, ((mixture.calories == 500) ? score : 0)};
 }
 
 int main() {
@@ -50,11 +54,13 @@ int main() {
   }
   auto const combinations = GetCombinations(samples, 100);
 
-  int max_score = 0;
+  int max_score1 = 0;
+  int max_score2 = 0;
   for (auto const &c : combinations) {
-    auto const score = CalculateCookieScore(c);
-    max_score = std::max(max_score, score);
+    auto const [score1, score2] = CalculateCookieScore(c);
+    max_score1 = std::max(max_score1, score1);
+    max_score2 = std::max(max_score2, score2);
   }
-  std::cout << max_score << "\n";
+  std::cout << max_score1 << "\n" << max_score2 << "\n";
   return 0;
 }
