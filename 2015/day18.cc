@@ -1,6 +1,6 @@
+#include <bitset>
 #include <iostream>
 #include <string>
-#include <bitset>
 
 int const kSize = 100;
 using Lights = std::bitset<kSize * kSize>;
@@ -46,6 +46,13 @@ Lights Step(Lights const &l0) {
   return l1;
 }
 
+void AdjustCorners(Lights *l) {
+  l->set(0);
+  l->set(kSize - 1);
+  l->set((kSize - 1) * kSize);
+  l->set((kSize - 1) * kSize + kSize - 1);
+}
+
 int main() {
   Lights lights0;
 
@@ -58,9 +65,14 @@ int main() {
   }
 
   auto lights = lights0;
+  auto lights2 = lights0;
+  AdjustCorners(&lights2);
   for (int i = 0; i < 100; ++i) {
     lights = Step(lights);
+
+    lights2 = Step(lights2);
+    AdjustCorners(&lights2);
   }
-  std::cout << lights.count() << "\n";
+  std::cout << lights.count() << "\n" << lights2.count() << "\n";
   return 0;
 }
