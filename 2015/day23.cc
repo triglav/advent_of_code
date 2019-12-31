@@ -4,16 +4,8 @@
 
 #include "string_utils.h"
 
-int main() {
-  int64_t register_a = 0;
-  int64_t register_b = 0;
-  std::vector<std::string> program;
-
-  std::string line;
-  while (std::getline(std::cin, line)) {
-    program.push_back(line);
-  }
-
+int64_t Execute(std::vector<std::string> const &program, int64_t register_a,
+                int64_t register_b) {
   size_t pos = 0;
   while (pos < program.size()) {
     assert(pos >= 0);
@@ -49,6 +41,16 @@ int main() {
     }
     ++pos;
   }
-  std::cout << register_b << "\n";
+  return register_b;
+}
+
+int main() {
+  std::vector<std::string> program;
+  std::string line;
+  while (std::getline(std::cin, line)) {
+    program.push_back(line);
+  }
+
+  std::cout << Execute(program, 0, 0) << "\n" << Execute(program, 1, 0) << "\n";
   return 0;
 }
