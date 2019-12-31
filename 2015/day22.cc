@@ -99,7 +99,13 @@ void UpdateActiveEffects(FightContext *c) {
   }
 }
 
-void SimulateFightTurn(FightContext *c) {
+void SimulateFightTurn(FightContext *c, bool hard) {
+  if (hard) {
+    --c->player.hit_points;
+    if (c->player.hit_points <= 0) {
+      return;
+    }
+  }
   UpdateActiveEffects(c);
   if (c->boss.hit_points <= 0) {
     return;
@@ -136,7 +142,8 @@ std::vector<size_t> ListAvailableSpells(FightContext const &c,
   return r;
 }
 
-int Simulate(FightContext const &c0, std::vector<Spell> const &all_spells) {
+int Simulate(FightContext const &c0, std::vector<Spell> const &all_spells,
+             bool hard = false) {
   int min_mana = std::numeric_limits<int>::max();
 
   std::deque<FightContext> to_check{c0};
@@ -163,7 +170,7 @@ int Simulate(FightContext const &c0, std::vector<Spell> const &all_spells) {
       auto c2 = c;
       c2.spell_queue.push_back(all_spells[spell_idx]);
 
-      SimulateFightTurn(&c2);
+      SimulateFightTurn(&c2, hard);
       to_check.push_back(c2);
     }
   }
@@ -182,8 +189,13 @@ int main() {
   FightContext c;
   c.boss = {58, 9};
   c.player = {50, 0, 0, 500};
-
-  auto min_mana = Simulate(c, available_spells);
-  std::cout << min_mana << "\n";
+  {
+    auto min_mana = Simulate(c, available_spells);
+    std::cout << min_mana << "\n";
+  }
+  {
+    auto min_mana = Simulate(c, available_spells, true);
+    std::cout << min_mana << "\n";
+  }
   return 0;
 }
