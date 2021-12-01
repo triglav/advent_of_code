@@ -1,15 +1,22 @@
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 int main() {
-  int depth0;
-  int depth;
-  std::cin >> depth0;
+  std::vector<int> depth;
+  for (int i = 0; i < 3; ++i) {
+    int d;
+    std::cin >> d;
+    depth.push_back(d);
+  }
+  depth.resize(4);
+  int d;
   int count = 0;
-  while (std::cin >> depth) {
-    if (depth > depth0) {
+  while (std::cin >> depth[3]) {
+    if (depth[3] > depth[0]) {
       ++count;
     }
-    depth0 = depth;
+    std::rotate(depth.begin(), depth.begin() + 1, depth.end());
   }
   std::cout << count << "\n";
   return 0;
