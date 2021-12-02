@@ -43,8 +43,8 @@ int main() {
     weight_sum += weight;
     packages.push_back(weight);
   }
-  int const desired_weight = weight_sum / 3;
-  assert(weight_sum % 3 == 0);
+  int const desired_weight = weight_sum / 4;
+  assert(weight_sum % 4 == 0);
 
   auto results = foo({}, packages, desired_weight);
   std::sort(results.begin(), results.end(), [](auto const & a, auto const & b) {
