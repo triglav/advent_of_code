@@ -71,13 +71,19 @@ int main() {
   std::string token;
   while (std::getline(ss, token, ',')) {
     auto const n = std::stoi(token);
-    for (auto &board : boards) {
-      board.Mark(n);
-      if (board.winning()) {
-        auto const final_score = board.CalculateScore() * n;
-        std::cout << final_score << "\n";
-        return 0;
+    for (auto it = boards.begin(); it != boards.end();) {
+      it->Mark(n);
+      if (!it->winning()) {
+        ++it;
+        continue;
       }
+      if (boards.size() > 1) {
+        it = boards.erase(it);
+        continue;
+      }
+      auto const final_score = it->CalculateScore() * n;
+      std::cout << final_score << "\n";
+      return 0;
     }
   }
   return 1;
