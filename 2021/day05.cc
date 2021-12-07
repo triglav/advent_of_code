@@ -54,6 +54,17 @@ int main() {
            ++x) {
         AddVent(&vents, Coord{x, v.p1.y});
       }
+    } else {
+      int const dx = v.p1.x < v.p2.x ? 1 : -1;
+      int const dy = v.p1.y < v.p2.y ? 1 : -1;
+      int const c = std::max(v.p1.x, v.p2.x) - std::min(v.p1.x, v.p2.x);
+      int x = v.p1.x;
+      int y = v.p1.y;
+      for (int i = 0; i <= c; ++i) {
+        AddVent(&vents, Coord{x, y});
+        x += dx;
+        y += dy;
+      }
     }
   }
 
