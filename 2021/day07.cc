@@ -24,11 +24,17 @@ int main() {
 
   auto const count = min_max.second->first - min_max.first->first;
 
+  std::vector<uint64_t> burnt_fuel;
+  burnt_fuel.push_back(0);
+  for (uint64_t i = 1; i <= count; ++i) {
+    burnt_fuel.push_back(burnt_fuel[i - 1] + i);
+  }
+
   uint64_t fuel = std::numeric_limits<uint64_t>::max();
   for (int i = 0; i < count; ++i) {
     uint64_t f = 0;
     for (auto const &[pos, count] : crabs) {
-      f += std::abs(pos - i) * count;
+      f += burnt_fuel[std::abs(pos - i)] * count;
     }
     fuel = std::min(fuel, f);
   }
