@@ -1,33 +1,26 @@
+#include <algorithm>
+#include <numeric>
+#include <array>
 #include <iostream>
-#include <vector>
 
-void SimulateDay(std::vector<int> *lanternfish) {
-  int new_fish = 0;
-  for (auto it = lanternfish->begin(); it != lanternfish->end(); ++it) {
-    auto &f = *it;
-    --f;
-    if (f < 0) {
-      f = 6;
-      ++new_fish;
-    }
-  }
-  for (int i = 0; i < new_fish; ++i) {
-    lanternfish->push_back(8);
-  }
+void SimulateDay(std::array<uint64_t, 9> *lanternfish) {
+  std::rotate(lanternfish->begin(), lanternfish->begin() + 1,
+              lanternfish->end());
+  (*lanternfish)[6] += (*lanternfish)[8];
 }
 
 int main() {
-  std::vector<int> lanternfish;
+  std::array<uint64_t, 9> lanternfish = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   std::string token;
   while (std::getline(std::cin, token, ',')) {
     auto const f = std::stoi(token);
-    lanternfish.push_back(f);
+    lanternfish[f] += 1;
   }
 
-  for (int i = 0; i < 80; ++i) {
+  for (int i = 0; i < 256; ++i) {
     SimulateDay(&lanternfish);
   }
-  std::cout << lanternfish.size() << "\n";
+  std::cout << std::accumulate(lanternfish.begin(), lanternfish.end(), 0UL) << "\n";
   return 0;
 }
