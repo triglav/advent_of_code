@@ -1,6 +1,10 @@
+#include <algorithm>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 #include <vector>
+
+#include "coord.h"
 
 struct Map {
   std::vector<char> locations;
@@ -27,6 +31,41 @@ struct Map {
     }
     return true;
   };
+
+  void check(int x, int y, char l, std::vector<Coord> *todo) {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+      return;
+    }
+    auto l2 = loc(x, y);
+    if (l2 >= l && l2 < 9) {
+      todo->push_back({x, y});
+    }
+  }
+
+  int ExploreBasin(int x, int y) {
+    std::unordered_set<Coord> visited;
+    std::vector<Coord> todo;
+    todo.push_back({x, y});
+    int size = 0;
+
+    while (!todo.empty()) {
+      auto const c = todo.back();
+      todo.pop_back();
+
+      if (visited.find(c) != visited.end()) {
+        continue;
+      }
+      auto l = loc(c.x, c.y);
+      size += 1;
+      visited.insert(c);
+
+      check(c.x - 1, c.y, l, &todo);
+      check(c.x + 1, c.y, l, &todo);
+      check(c.x, c.y - 1, l, &todo);
+      check(c.x, c.y + 1, l, &todo);
+    }
+    return size;
+  }
 };
 
 std::istream &operator>>(std::istream &input, Map &m) {
@@ -46,14 +85,20 @@ int main() {
   Map m;
   std::cin >> m;
 
+  std::vector<int> basin_sizes;
   int sum = 0;
   for (int y = 0; y < m.height; ++y) {
     for (int x = 0; x < m.width; ++x) {
       if (m.is_low_point(x, y)) {
         sum += m.loc(x, y) + 1;
+        auto s = m.ExploreBasin(x, y);
+        auto const it = std::lower_bound(basin_sizes.begin(), basin_sizes.end(),
+                                         s, std::greater<int>());
+        basin_sizes.insert(it, s);
       }
     }
   }
   std::cout << sum << "\n";
+  std::cout << basin_sizes[0] * basin_sizes[1] * basin_sizes[2] << "\n";
   return 0;
 }
