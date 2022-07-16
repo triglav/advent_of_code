@@ -1,4 +1,8 @@
-use std::io::{self, BufRead};
+use itertools::Itertools;
+use std::{
+    collections::HashSet,
+    io::{self, BufRead},
+};
 
 fn main() {
     let stdin = io::stdin();
@@ -27,11 +31,23 @@ fn main() {
         find((0, 7), input, ('L', 'R'))
     }
 
-    let r = lines.iter().map(|l| {
-        let b = l.as_bytes();
-        let row = find_row(b);
-        let column = find_column(&b[7..]);
-        row * 8 + column
-    }).max();
+    let ids: HashSet<_> = lines
+        .iter()
+        .map(|l| {
+            let b = l.as_bytes();
+            let row = find_row(b);
+            let column = find_column(&b[7..]);
+            row * 8 + column
+        })
+        .collect();
+    let r = ids.iter().max();
     println!("{}", r.unwrap());
+
+    let available_seats: HashSet<_> = (9..120)
+        .cartesian_product(0..8)
+        .map(|(r, c)| r * 8 + c)
+        .collect();
+    let free_seats: Vec<_> = available_seats.difference(&ids).sorted().collect();
+    assert!(free_seats.len() == 1);
+    println!("{}", free_seats[0]);
 }
