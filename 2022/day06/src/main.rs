@@ -1,22 +1,35 @@
-use itertools::izip;
-use std::io;
+use itertools::{Itertools, MultiPeek};
+use std::{io, str::Chars};
 
-type Sequence = (char, char, char, char);
+fn are_characters_distinct(iter: &mut MultiPeek<Chars>, size: usize) -> bool {
+    let v = (0..size)
+        .filter_map(|_| match iter.peek() {
+            Some(n) => Some(*n),
+            None => None,
+        })
+        .collect::<Vec<char>>();
+    v.len() == size && v.iter().all_unique()
+}
 
-fn is_start_of_packet_marker((a, b, c, d): Sequence) -> bool {
-    a != b && a != c && a != d && b != c && b != d && c != d
+fn find_marker(iter: &mut MultiPeek<Chars>, size: usize) -> usize {
+    let mut idx = 0;
+    while let Some(_) = iter.next() {
+        idx += 1;
+        if are_characters_distinct(iter, size) {
+            return idx + size;
+        }
+    }
+    0
 }
 
 fn main() {
     let buf = io::stdin().lines().next().unwrap().unwrap();
 
-    let r1 = izip!(
-        buf.chars(),
-        buf.chars().skip(1),
-        buf.chars().skip(2),
-        buf.chars().skip(3)
-    )
-    .position(is_start_of_packet_marker)
-    .unwrap() + 4;
+    let mut i1 = buf.chars().multipeek();
+    let r1 = find_marker(&mut i1, 4);
     println!("{}", r1);
+
+    let mut i2 = buf.chars().multipeek();
+    let r2 = find_marker(&mut i2, 14);
+    println!("{}", r2);
 }
