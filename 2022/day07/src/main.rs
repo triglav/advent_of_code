@@ -169,11 +169,30 @@ fn main() {
         shell.execute(&c);
     }
     let dirs = shell.filesystem.keys().collect::<Vec<&String>>();
-
-    let r1 = dirs
+    let dirs_with_sizes = dirs
         .iter()
-        .map(|d| dir_size(&shell.filesystem, *d))
+        .map(|d| (*d, dir_size(&shell.filesystem, *d)))
+        .collect::<HashMap<_, _>>();
+
+    let r1 = dirs_with_sizes
+        .iter()
+        .map(|(_, s)| *s)
         .filter(|s| *s <= 100000_u64)
         .sum::<u64>();
     println!("{}", r1);
+
+    let disk_size = 70000000_u64;
+    let required_space = 30000000_u64;
+    let used_space = *dirs_with_sizes.get(&"/".to_string()).unwrap();
+
+    let free_space = disk_size - used_space;
+    let required_to_delete = required_space - free_space;
+
+    let r2 = dirs_with_sizes
+        .iter()
+        .map(|(_, s)| *s)
+        .filter(|s| *s >= required_to_delete)
+        .min()
+        .unwrap();
+    println!("{}", r2);
 }
