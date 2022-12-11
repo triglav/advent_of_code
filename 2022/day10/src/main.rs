@@ -57,4 +57,14 @@ fn main() {
         .filter(|c| interesting_cycle_numbers.contains(&c.cycle));
     let r1 = interesting_cycles.map(|c| c.signal_strength()).sum::<i32>();
     println!("{}", r1);
+
+    let width = 40;
+    for c in cycles.iter() {
+        let drawing_pixel = (c.cycle - 1) % width;
+        let pixel_lit = drawing_pixel >= c.reg_x - 1 && drawing_pixel <= c.reg_x + 1;
+        print!("{}", if pixel_lit { '#' } else { '.' });
+        if c.cycle % width == 0 {
+            println!();
+        }
+    }
 }
