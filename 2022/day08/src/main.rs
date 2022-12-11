@@ -92,6 +92,33 @@ fn filter_visible_from_bottom(grid: &Grid) -> HashSet<Coord> {
     m
 }
 
+fn count_visibe_trees<I>(t: i8, iter: I) -> u64
+where
+    I: Iterator<Item = i8>,
+{
+    let mut r = 0_u64;
+    for t2 in iter {
+        r += 1;
+        if t2 >= t {
+            break;
+        }
+    }
+    r
+}
+
+fn get_scenic_score(c: Coord, grid: &Grid, width: usize, height: usize) -> u64 {
+    let t = grid[c.y][c.x];
+    let top = (0..c.y).rev().map(|y| grid[y][c.x]);
+    let bottom = ((c.y + 1)..height).map(|y| grid[y][c.x]);
+    let left = (0..c.x).rev().map(|x| grid[c.y][x]);
+    let right = ((c.x + 1)..width).map(|x| grid[c.y][x]);
+
+    count_visibe_trees(t, top)
+        * count_visibe_trees(t, bottom)
+        * count_visibe_trees(t, left)
+        * count_visibe_trees(t, right)
+}
+
 fn main() {
     let grid = read_grid();
 
@@ -108,4 +135,13 @@ fn main() {
 
     let r1 = visible.len();
     println!("{}", r1);
+
+    let height = grid.len();
+    let width = grid.first().unwrap().len();
+    let r2 = (0..height)
+        .flat_map(move |y| (0..width).map(move |x| Coord { x, y }))
+        .map(|c| get_scenic_score(c, &grid, width, height))
+        .max()
+        .unwrap();
+    println!("{}", r2);
 }
