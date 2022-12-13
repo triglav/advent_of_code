@@ -126,4 +126,29 @@ fn main() {
         .filter_map(|(idx, b)| if b { Some(idx + 1) } else { None })
         .sum();
     println!("{}", r1);
+
+    let mut lines2: Vec<_> = lines.iter().filter(|l| !l.is_empty()).collect();
+    let r2i1 = String::from("[[2]]");
+    let r2i2 = String::from("[[6]]");
+    lines2.push(&r2i1);
+    lines2.push(&r2i2);
+    lines2.sort_unstable_by(|a, b| {
+        if packets_in_right_order(a.chars(), b.chars()) {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+    let r2: usize = lines2
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, s)| {
+            if **s == r2i1 || **s == r2i2 {
+                Some(idx + 1)
+            } else {
+                None
+            }
+        })
+        .product();
+    println!("{}", r2);
 }
