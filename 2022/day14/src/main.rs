@@ -113,28 +113,44 @@ fn simulate_sand_step(cave: &HashSet<Coord>, c0: Coord) -> Coord {
     c0
 }
 
-fn is_within_boundaries(c0: Coord, b: Boundaries) -> bool {
-    b.0.x <= c0.x && b.0.y <= b.0.y && b.1.x >= c0.x && b.1.y >= c0.y
+fn is_within_boundaries(c0: Coord, b: Boundaries, floor: bool) -> bool {
+    if floor {
+        b.0.y <= b.0.y && b.1.y + 2 > c0.y
+    } else {
+        b.0.x <= c0.x && b.0.y <= b.0.y && b.1.x >= c0.x && b.1.y >= c0.y
+    }
 }
 
-fn simulate_sand_unit(cave: &HashSet<Coord>, c0: Coord, b: Boundaries) -> Option<Coord> {
+fn simulate_sand_unit(
+    cave: &HashSet<Coord>,
+    c0: Coord,
+    b: Boundaries,
+    floor: bool,
+) -> Option<Coord> {
     let mut p = c0;
     loop {
+        if floor && cave.contains(&c0) {
+            break None;
+        }
         let p2 = simulate_sand_step(cave, p);
         if p == p2 {
             break Some(p);
         }
-        if !is_within_boundaries(p2, b) {
-            break None;
+        if !is_within_boundaries(p2, b, floor) {
+            if floor {
+                break Some(p);
+            } else {
+                break None;
+            }
         }
         p = p2;
     }
 }
 
-fn simulate_sand(cave: &mut HashSet<Coord>, c0: Coord, b: Boundaries) -> usize {
+fn simulate_sand(cave: &mut HashSet<Coord>, c0: Coord, b: Boundaries, floor: bool) -> usize {
     let mut c: usize = 0;
     loop {
-        match simulate_sand_unit(cave, c0, b) {
+        match simulate_sand_unit(cave, c0, b, floor) {
             Some(p) => {
                 c += 1;
                 cave.insert(p);
@@ -154,6 +170,10 @@ fn main() {
     let c0 = Coord { x: 500, y: 0 };
 
     let mut cave1 = cave0.clone();
-    let r1 = simulate_sand(&mut cave1, c0, b);
+    let r1 = simulate_sand(&mut cave1, c0, b, false);
     println!("{}", r1);
+
+    let mut cave2 = cave0.clone();
+    let r2 = simulate_sand(&mut cave2, c0, b, true);
+    println!("{}", r2);
 }
