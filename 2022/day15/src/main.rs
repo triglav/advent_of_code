@@ -55,6 +55,32 @@ fn merge_ranges(a: &(i32, i32), b: &(i32, i32)) -> Vec<(i32, i32)> {
     }
 }
 
+fn get_row_coverage(sensors: &Vec<Sensor>, row: i32) -> Vec<(i32, i32)> {
+    let mut covered1: Vec<_> = sensors
+        .iter()
+        .map(|s| covered_range(&s, row))
+        .filter(|r| r.is_some())
+        .map(|r| r.unwrap())
+        .collect();
+    covered1.sort_by(|a, b| {
+        let c = a.0.cmp(&b.0);
+        match c {
+            std::cmp::Ordering::Equal => a.1.cmp(&b.1),
+            _ => c,
+        }
+    });
+    covered1.iter().fold(vec![], |mut a, c| {
+        if a.is_empty() {
+            a.push(*c);
+        } else {
+            let c0 = a.pop().unwrap();
+            let v = merge_ranges(&c0, c);
+            a.extend(v);
+        }
+        a
+    })
+}
+
 fn main() {
     let lines = io::stdin().lines().map(|f| f.unwrap());
 
@@ -66,42 +92,34 @@ fn main() {
             distance: sensor_distance(*s, *b),
         })
         .collect();
-
-    let row1 = 2000000;
-    // let row1 = 10;
-    let beacons1 = sensors_and_beacons
+    let beacons = sensors_and_beacons
         .iter()
         .fold(HashSet::<Coord>::new(), |mut a, (_s, b)| {
             a.insert(*b);
             a
-        })
-        .iter()
-        .filter(|b| b.y == row1)
-        .count();
-    let mut covered1: Vec<_> = sensors
-        .iter()
-        .map(|s| covered_range(&s, row1))
-        .filter(|r| r.is_some())
-        .map(|r| r.unwrap())
-        .collect();
-    covered1.sort_by(|a, b| {
-        let c = a.0.cmp(&b.0);
-        match c {
-            std::cmp::Ordering::Equal => a.1.cmp(&b.1),
-            _ => c,
-        }
-    });
-    let covered_merged1 = covered1.iter().fold(vec![], |mut a, c| {
-        if a.is_empty() {
-            a.push(*c);
-        } else {
-            let c0 = a.pop().unwrap();
-            let v = merge_ranges(&c0, c);
-            a.extend(v);
-        }
-        a
-    });
+        });
+
+    let row1 = 2000000;
+    // let row1 = 10;
+    let beacons1 = beacons.iter().filter(|b| b.y == row1).count();
+    let covered_merged1 = get_row_coverage(&sensors, row1);
     let covered_count1 = covered_merged1.iter().map(|(l, r)| r - l + 1).sum::<i32>();
     let r1 = (covered_count1 as usize) - beacons1;
     println!("{}", r1);
+
+    let b_max = 4000000;
+    // let b_max = 20;
+    let c2 = (0..=b_max).find_map(|row| {
+        let covered_merged = get_row_coverage(&sensors, row);
+        if covered_merged.len() > 1 {
+            Some(Coord {
+                x: covered_merged.first().unwrap().1 + 1,
+                y: row,
+            })
+        } else {
+            None
+        }
+    });
+    let r2 = c2.unwrap().x as i64 * b_max as i64 + c2.unwrap().y as i64;
+    println!("{}", r2);
 }
