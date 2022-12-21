@@ -1,4 +1,4 @@
-use std::{io, str::FromStr};
+use std::{collections::HashMap, io, str::FromStr};
 
 #[derive(Debug)]
 struct Blueprint {
@@ -53,6 +53,13 @@ enum BuildTask {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum BuildStatus {
+    NotEnoughResources,
+    NotPossibleToBuild,
+    CanBuild,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct System {
     ore: u32,
     clay: u32,
@@ -67,6 +74,7 @@ struct System {
     time: u32,
 
     task: Option<BuildTask>,
+    history: Vec<(u32, u32)>,
 }
 
 impl System {
@@ -82,6 +90,7 @@ impl System {
             geode_robots: 0,
             time,
             task: None,
+            history: vec![],
         }
     }
 
@@ -98,49 +107,77 @@ impl System {
         self.time > 0
     }
 
-    fn can_build_ore_robot(&mut self, b: &Blueprint) -> bool {
-        self.ore >= b.ore_robot_ore_costs
+    fn can_build_ore_robot(&mut self, b: &Blueprint) -> BuildStatus {
+        if self.ore >= b.ore_robot_ore_costs {
+            BuildStatus::CanBuild
+        } else if self.ore_robots == 0 {
+            BuildStatus::NotPossibleToBuild
+        } else {
+            BuildStatus::NotEnoughResources
+        }
     }
 
     fn build_ore_robot(&mut self, b: &Blueprint) {
-        assert!(self.can_build_ore_robot(b));
+        assert_eq!(self.can_build_ore_robot(b), BuildStatus::CanBuild);
         self.ore_robots += 1;
         self.ore -= b.ore_robot_ore_costs;
+        self.history.push((self.time, 0));
     }
 
-    fn can_build_clay_robot(&mut self, b: &Blueprint) -> bool {
-        self.ore >= b.clay_robot_ore_costs
+    fn can_build_clay_robot(&mut self, b: &Blueprint) -> BuildStatus {
+        if self.ore >= b.clay_robot_ore_costs {
+            BuildStatus::CanBuild
+        } else if self.ore_robots == 0 {
+            BuildStatus::NotPossibleToBuild
+        } else {
+            BuildStatus::NotEnoughResources
+        }
     }
 
     fn build_clay_robot(&mut self, b: &Blueprint) {
-        assert!(self.can_build_clay_robot(b));
+        assert_eq!(self.can_build_clay_robot(b), BuildStatus::CanBuild);
         self.clay_robots += 1;
         self.ore -= b.clay_robot_ore_costs;
+        self.history.push((self.time, 1));
     }
 
-    fn can_build_obsidian_robot(&mut self, b: &Blueprint) -> bool {
-        self.ore >= b.obsidian_robot_ore_costs && self.clay >= b.obsidian_robot_clay_costs
+    fn can_build_obsidian_robot(&mut self, b: &Blueprint) -> BuildStatus {
+        if self.ore >= b.obsidian_robot_ore_costs && self.clay >= b.obsidian_robot_clay_costs {
+            BuildStatus::CanBuild
+        } else if self.ore_robots == 0 || self.clay_robots == 0 {
+            BuildStatus::NotPossibleToBuild
+        } else {
+            BuildStatus::NotEnoughResources
+        }
     }
 
     fn build_obsidian_robot(&mut self, b: &Blueprint) {
-        assert!(self.can_build_obsidian_robot(b));
+        assert_eq!(self.can_build_obsidian_robot(b), BuildStatus::CanBuild);
         self.obsidian_robots += 1;
         self.ore -= b.obsidian_robot_ore_costs;
         self.clay -= b.obsidian_robot_clay_costs;
+        self.history.push((self.time, 2));
     }
 
-    fn can_build_geode_robot(&mut self, b: &Blueprint) -> bool {
-        self.ore >= b.geode_robot_ore_costs && self.obsidian >= b.geode_robot_obsidian_costs
+    fn can_build_geode_robot(&mut self, b: &Blueprint) -> BuildStatus {
+        if self.ore >= b.geode_robot_ore_costs && self.obsidian >= b.geode_robot_obsidian_costs {
+            BuildStatus::CanBuild
+        } else if self.ore_robots == 0 || self.obsidian_robots == 0 {
+            BuildStatus::NotPossibleToBuild
+        } else {
+            BuildStatus::NotEnoughResources
+        }
     }
 
     fn build_geode_robot(&mut self, b: &Blueprint) {
-        assert!(self.can_build_geode_robot(b));
+        assert_eq!(self.can_build_geode_robot(b), BuildStatus::CanBuild);
         self.geode_robots += 1;
         self.ore -= b.geode_robot_ore_costs;
         self.obsidian -= b.geode_robot_obsidian_costs;
+        self.history.push((self.time, 2));
     }
 
-    fn can_build(&mut self, b: &Blueprint) -> bool {
+    fn can_build(&mut self, b: &Blueprint) -> BuildStatus {
         match self.task {
             Some(BuildTask::OreRobot) => self.can_build_ore_robot(b),
             Some(BuildTask::ClayRobot) => self.can_build_clay_robot(b),
@@ -164,14 +201,15 @@ impl System {
 
 fn simulate(start: System, blueprint: &Blueprint) -> u32 {
     let mut todo = vec![start];
+    let mut best = HashMap::<u32, u32>::new();
     let mut max_geodes = 0;
     while let Some(mut s) = todo.pop() {
         if s.task == None {
             for new_task in [
-                BuildTask::OreRobot,
-                BuildTask::ClayRobot,
-                BuildTask::ObsidianRobot,
                 BuildTask::GeodeRobot,
+                BuildTask::ObsidianRobot,
+                BuildTask::ClayRobot,
+                BuildTask::OreRobot,
             ] {
                 let mut s2 = s.clone();
                 s2.task = Some(new_task);
@@ -179,17 +217,36 @@ fn simulate(start: System, blueprint: &Blueprint) -> u32 {
             }
             continue;
         }
-        if s.can_build(blueprint) {
-            if s.tick() {
-                s.build(blueprint);
-                todo.push(s);
+
+        if let Some(t) = best.get(&(s.geode_robots + 1)) {
+            if s.time < *t {
                 continue;
             }
-        } else {
-            if s.tick() {
-                todo.push(s);
-                continue;
+        }
+        match s.can_build(blueprint) {
+            BuildStatus::CanBuild => {
+                if s.tick() {
+                    s.build(blueprint);
+                    if s.geode_robots > 0 {
+                        if let Some(t) = best.get(&s.geode_robots) {
+                            if s.time > *t {
+                                best.insert(s.geode_robots, s.time);
+                            }
+                        } else {
+                            best.insert(s.geode_robots, s.time);
+                        }
+                    }
+                    todo.push(s);
+                    continue;
+                }
             }
+            BuildStatus::NotEnoughResources => {
+                if s.tick() {
+                    todo.push(s);
+                    continue;
+                }
+            }
+            BuildStatus::NotPossibleToBuild => continue,
         }
         if s.geode > max_geodes {
             max_geodes = s.geode;
@@ -200,13 +257,26 @@ fn simulate(start: System, blueprint: &Blueprint) -> u32 {
 
 fn main() {
     let lines = io::stdin().lines().map(|l| l.unwrap());
-    let r1: u32 = lines
-        .map(|l| {
-            let b = parse_blueprint(l.as_str());
+    let blueprints: Vec<_> = lines.map(|l| parse_blueprint(l.as_str())).collect();
+
+    let r1: u32 = blueprints
+        .iter()
+        .map(|b| {
             let s = System::new(24);
             let geodes = simulate(s, &b);
             b.id * geodes
         })
         .sum();
     println!("{:?}", r1);
+
+    let r2: u32 = blueprints
+        .iter()
+        .take(3)
+        .map(|b| {
+            let s = System::new(32);
+            let time = simulate(s, &b);
+            time
+        })
+        .product();
+    println!("{:?}", r2);
 }
