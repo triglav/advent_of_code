@@ -199,31 +199,31 @@ fn find_all_states(valley: &mut Valley) -> Vec<HashSet<Coord>> {
     blizz_states
 }
 
-fn main() {
-    let lines: Vec<_> = io::stdin().lines().map(|l| l.unwrap()).collect();
-    let mut valley = parse_valley(&lines);
-
+fn find_shortest_path(
+    starting_minute: usize,
+    start: Coord,
+    goal: Coord,
+    valley: &Valley,
+    blizz_states: &Vec<HashSet<Coord>>,
+) -> usize {
     let mut todo = BinaryHeap::<State>::new();
     todo.push(State {
-        pos: valley.start,
-        minute: 0,
-        history: vec![valley.start],
+        pos: start,
+        minute: starting_minute,
+        history: vec![start],
     });
-    let blizz_states = find_all_states(&mut valley);
 
     let mut seen = HashSet::<(Coord, usize)>::new();
     seen.insert((valley.start, 0));
 
-    let mut r1 = None;
     while let Some(State {
         pos,
         minute,
         history,
     }) = todo.pop()
     {
-        if pos == valley.goal {
-            r1 = Some(minute);
-            break;
+        if pos == goal {
+            return minute;
         }
         let next_minute = minute + 1;
         let next_state_idx = next_minute % blizz_states.len();
@@ -242,5 +242,18 @@ fn main() {
             }
         }
     }
-    println!("{}", r1.unwrap());
+    panic!("There does not seem to be a path");
+}
+
+fn main() {
+    let lines: Vec<_> = io::stdin().lines().map(|l| l.unwrap()).collect();
+    let mut valley = parse_valley(&lines);
+    let blizz_states = find_all_states(&mut valley);
+
+    let r1 = find_shortest_path(0, valley.start, valley.goal, &valley, &blizz_states);
+    println!("{}", r1);
+
+    let r2a = find_shortest_path(r1, valley.goal, valley.start, &valley, &blizz_states);
+    let r2 = find_shortest_path(r2a, valley.start, valley.goal, &valley, &blizz_states);
+    println!("{}", r2);
 }
