@@ -160,8 +160,9 @@ fn add_direction(pos: &Coord, dir: &Direction) -> Coord {
 fn propose_moves(
     elves: &HashSet<Coord>,
     directions: &Vec<Direction>,
-) -> HashMap<Coord, HashSet<Coord>> {
+) -> (HashMap<Coord, HashSet<Coord>>, usize) {
     let mut moves = HashMap::<Coord, HashSet<Coord>>::new();
+    let mut elves_without_move = 0;
     for e in elves {
         let mut moved = false;
         if are_other_elves_around(elves, e) {
@@ -176,6 +177,8 @@ fn propose_moves(
                     break;
                 }
             }
+        } else {
+            elves_without_move += 1;
         }
         if !moved {
             let mut o = HashSet::<Coord>::new();
@@ -183,7 +186,7 @@ fn propose_moves(
             moves.insert(*e, o);
         }
     }
-    moves
+    (moves, elves_without_move)
 }
 
 fn apply_moves(proposed_moves: &HashMap<Coord, HashSet<Coord>>) -> HashSet<Coord> {
@@ -230,16 +233,23 @@ fn main() {
         Direction::East,
     ];
 
-    for _ in 0..10 {
-        let count = elves.len();
-        let moves = propose_moves(&elves, &directions);
+    let count = elves.len();
+    let mut r2 = 1;
+    loop {
+        let (moves, elves_without_move) = propose_moves(&elves, &directions);
         elves = apply_moves(&moves);
-        assert_eq!(count, elves.len());
         directions.rotate_left(1);
+        if r2 == 10 {
+            let (tl, br) = find_smallest_rect(&elves);
+            let w = br.x - tl.x + 1;
+            let h = br.y - tl.y + 1;
+            let r1 = w * h - elves.len() as i32;
+            println!("{}", r1);
+        }
+        if elves_without_move == count {
+            println!("{}", r2);
+            break;
+        }
+        r2 += 1;
     }
-    let (tl, br) = find_smallest_rect(&elves);
-    let w = br.x - tl.x + 1;
-    let h = br.y - tl.y + 1;
-    let r1 = w * h - elves.len() as i32;
-    println!("{}", r1);
 }
