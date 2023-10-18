@@ -10,6 +10,7 @@ fn main() {
     let lines = stdin.lock().lines().map(|l| l.unwrap());
     let re = Regex::new(r"^(\d+) ((\w|\s)+) bags?\.?$").unwrap();
     let mut bag_map = HashMap::<String, HashSet<String>>::new();
+    let mut bag_map2 = HashMap::<String, Vec<(u32, String)>>::new();
     lines.for_each(|l| {
         let ll: Vec<_> = l.split(" bags contain ").collect();
         let bag = ll[0];
@@ -22,6 +23,7 @@ fn main() {
                 (count, color)
             })
             .collect();
+        bag_map2.insert(bag.to_string(), bags.clone());
 
         bags.iter()
             .for_each(|(_, c)| match bag_map.get_mut(c.as_str()) {
@@ -53,7 +55,18 @@ fn main() {
         }
     }
 
+    fn count_children(color: &str, bag_map: &HashMap<String, Vec<(u32, String)>>) -> u32 {
+        bag_map
+            .get(color)
+            .unwrap()
+            .iter()
+            .fold(0u32, |acc, (count, color)| {
+                acc + count + count * count_children(color, bag_map)
+            })
+    }
+
     let mut bags = HashSet::<String>::new();
     find_parent("shiny gold", &bag_map, &mut bags);
     println!("{:?}", bags.len() - 1);
+    println!("{}", count_children("shiny gold", &bag_map2));
 }
