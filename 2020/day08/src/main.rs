@@ -1,5 +1,6 @@
 use std::io::{self, BufRead};
 
+#[derive(Clone, Copy)]
 enum Instruction {
     Acc(i32),
     Jmp(i32),
@@ -67,7 +68,28 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut program = Program::new(instructions);
+    let mut program = Program::new(instructions.clone());
     program.detect_loop();
     println!("{}", program.acc);
+
+    let r2 = (0..instructions.len())
+        .filter(|&i| matches!(instructions[i], Instruction::Jmp(_) | Instruction::Nop(_)))
+        .map(|i| {
+            let mut instructions = instructions.clone();
+            instructions[i] = match instructions[i] {
+                Instruction::Jmp(arg) => Instruction::Nop(arg),
+                Instruction::Nop(arg) => Instruction::Jmp(arg),
+                _ => panic!("invalid instruction"),
+            };
+            instructions
+        })
+        .find_map(|i| {
+            let mut p = Program::new(i);
+            if !p.detect_loop() {
+                Some(p.acc)
+            } else {
+                None
+            }
+        });
+    println!("{}", r2.unwrap());
 }
