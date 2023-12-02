@@ -37,16 +37,22 @@ fn main() {
         green: 13,
         blue: 14,
     };
-    let r1 = io::stdin()
+    let x = io::stdin()
         .lines()
         .map(|l| parse(l.unwrap().as_str()))
-        .filter_map(|(id, sets)| {
+        .map(|(id, sets)| {
             let m = sets.iter().fold(Set::default(), |mut a, set| {
                 a.red = a.red.max(set.red);
                 a.green = a.green.max(set.green);
                 a.blue = a.blue.max(set.blue);
                 a
             });
+            (id, m)
+        })
+        .collect::<Vec<_>>();
+    let r1 = x
+        .iter()
+        .filter_map(|(id, m)| {
             if m.red <= limit.red && m.green <= limit.green && m.blue <= limit.blue {
                 Some(id)
             } else {
@@ -55,4 +61,9 @@ fn main() {
         })
         .sum::<u32>();
     println!("{}", r1);
+    let r2 = x
+        .iter()
+        .map(|(_id, m)| m.red * m.green * m.blue)
+        .sum::<u32>();
+    println!("{}", r2);
 }
