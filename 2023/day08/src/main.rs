@@ -61,4 +61,28 @@ fn main() {
     }
     let r1 = s.steps;
     println!("{}", r1);
+    let l = instructions.len();
+
+    let starting_nodes = nodes
+        .keys()
+        .filter(|n| n.ends_with('A'))
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+
+    let r2 = starting_nodes
+        .iter()
+        .map(|n| {
+            let mut s = State {
+                instruction_idx: 0,
+                node: n.to_string(),
+                steps: 0,
+            };
+            while !s.node.ends_with('Z') {
+                s = process(&s, &instructions, &nodes);
+            }
+            s.steps / l
+        })
+        .product::<usize>()
+        * l;
+    println!("{}", r2);
 }
