@@ -1,12 +1,12 @@
 use std::io;
 
-fn parse(s: &str) -> Vec<u32> {
+fn parse(s: &str) -> Vec<u64> {
     s.split(' ')
-        .filter_map(|x| x.parse::<u32>().ok())
+        .filter_map(|x| x.parse::<u64>().ok())
         .collect::<Vec<_>>()
 }
 
-fn count_ways_to_win(time: u32, distance: u32) -> u32 {
+fn count_ways_to_win(time: u64, distance: u64) -> u64 {
     let r = (0..=time)
         .map(|charging_time| {
             let speed = charging_time;
@@ -14,7 +14,16 @@ fn count_ways_to_win(time: u32, distance: u32) -> u32 {
             speed * remaining_time
         })
         .filter(|&x| x > distance);
-    r.count() as u32
+    r.count() as u64
+}
+
+fn fix_number(v: &[u64]) -> u64 {
+    v.iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<_>>()
+        .join("")
+        .parse::<u64>()
+        .unwrap()
 }
 
 fn main() {
@@ -27,6 +36,11 @@ fn main() {
         .iter()
         .zip(distance.iter())
         .map(|(&time, &distance)| count_ways_to_win(time, distance))
-        .product::<u32>();
+        .product::<u64>();
     println!("{}", r1);
+
+    let time = fix_number(&time);
+    let distance = fix_number(&distance);
+    let r2 = count_ways_to_win(time, distance);
+    println!("{}", r2);
 }
