@@ -105,6 +105,22 @@ impl Laser {
     }
 }
 
+fn energise(grid: &Grid<char>, start: Laser) -> usize {
+    let mut visited = HashSet::new();
+    let mut energised = Grid::new(grid.width, grid.height, false);
+    let mut todo = VecDeque::from([start]);
+    while let Some(laser) = todo.pop_front() {
+        if visited.contains(&laser) {
+            continue;
+        }
+        visited.insert(laser);
+        *energised.get_mut(laser.x, laser.y) = true;
+
+        todo.extend(laser.advance(grid));
+    }
+    energised.tiles.iter().filter(|&&e| e).count()
+}
+
 fn main() {
     let grid = Grid::from(
         io::stdin()
@@ -113,22 +129,47 @@ fn main() {
             .collect::<Vec<_>>(),
     );
 
-    let mut visited = HashSet::new();
-    let mut energised = Grid::new(grid.width, grid.height, false);
-    let mut todo = VecDeque::from([Laser {
-        x: 0,
-        y: 0,
-        dir: Direction::Right,
-    }]);
-    while let Some(laser) = todo.pop_front() {
-        if visited.contains(&laser) {
-            continue;
-        }
-        visited.insert(laser);
-        *energised.get_mut(laser.x, laser.y) = true;
-
-        todo.extend(laser.advance(&grid));
-    }
-    let r1 = energised.tiles.iter().filter(|&&e| e).count();
+    let r1 = energise(
+        &grid,
+        Laser {
+            x: 0,
+            y: 0,
+            dir: Direction::Right,
+        },
+    );
     println!("{}", r1);
+
+    let r2 = (0..grid.width)
+        .flat_map(|x| {
+            vec![
+                Laser {
+                    x,
+                    y: 0,
+                    dir: Direction::Down,
+                },
+                Laser {
+                    x,
+                    y: grid.height - 1,
+                    dir: Direction::Up,
+                },
+            ]
+        })
+        .chain((0..grid.height).flat_map(|y| {
+            vec![
+                Laser {
+                    x: 0,
+                    y,
+                    dir: Direction::Right,
+                },
+                Laser {
+                    x: grid.width - 1,
+                    y,
+                    dir: Direction::Left,
+                },
+            ]
+        }))
+        .map(|laser| energise(&grid, laser))
+        .max()
+        .unwrap();
+    println!("{}", r2);
 }
