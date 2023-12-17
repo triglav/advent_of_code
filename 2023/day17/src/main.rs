@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    io,
-};
+use std::{collections::VecDeque, io};
 
 struct Grid<T> {
     pub width: i32,
@@ -29,11 +26,17 @@ where
         assert!(y >= 0 && y < self.height);
         self.tiles[(y * self.width + x) as usize]
     }
+
+    pub fn get_mut(&mut self, x: i32, y: i32) -> &mut T {
+        assert!(x >= 0 && x < self.width);
+        assert!(y >= 0 && y < self.height);
+        self.tiles.get_mut((y * self.width + x) as usize).unwrap()
+    }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 enum Direction {
-    Up,
+    Up = 0,
     Down,
     Left,
     Right,
@@ -77,86 +80,88 @@ fn get_direction_coord<T>(grid: &Grid<T>, x: i32, y: i32, dir: Direction) -> Opt
     Some((x, y))
 }
 
-const MAX_STRAIGHT: i32 = 3;
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Crucible {
     x: i32,
     y: i32,
     dir: Direction,
-    remaining_straight: i32,
     heat_loss: u32,
 }
 
 impl Crucible {
-    fn advance(
-        &self,
-        grid: &Grid<u32>,
-        dir: Direction,
-        remaining_straight: i32,
-    ) -> Option<Crucible> {
+    pub fn new(dir: Direction) -> Crucible {
+        Crucible {
+            x: 0,
+            y: 0,
+            dir,
+            heat_loss: 0,
+        }
+    }
+
+    fn advance(&self, grid: &Grid<u32>, dir: Direction) -> Option<Crucible> {
         get_direction_coord(grid, self.x, self.y, dir).map(|(x, y)| Crucible {
             x,
             y,
             dir,
-            remaining_straight,
             heat_loss: self.heat_loss + grid.get(x, y),
         })
     }
 
-    pub fn step(&self, grid: &Grid<u32>) -> Vec<Crucible> {
+    pub fn step(&self, grid: &Grid<u32>, min_straight: i32, max_straight: i32) -> Vec<Crucible> {
         let mut r = vec![];
-        if self.remaining_straight > 0 {
-            if let Some(c) = self.advance(grid, self.dir, self.remaining_straight - 1) {
-                r.push(c);
+        let mut c = Some(*self);
+        for i in 1..=max_straight {
+            if let Some(c2) = c {
+                c = c2.advance(grid, c2.dir);
+                if let Some(c) = c {
+                    if i >= min_straight {
+                        r.push(c);
+                    }
+                }
             }
         }
-        if let Some(c) = self.advance(grid, self.dir.right(), MAX_STRAIGHT - 1) {
-            r.push(c);
-        }
-        if let Some(c) = self.advance(grid, self.dir.left(), MAX_STRAIGHT - 1) {
-            r.push(c);
-        }
-        r
+        r.into_iter()
+            .flat_map(|c| {
+                vec![
+                    Crucible {
+                        x: c.x,
+                        y: c.y,
+                        dir: c.dir.left(),
+                        heat_loss: c.heat_loss,
+                    },
+                    Crucible {
+                        x: c.x,
+                        y: c.y,
+                        dir: c.dir.right(),
+                        heat_loss: c.heat_loss,
+                    },
+                ]
+            })
+            .collect::<Vec<_>>()
     }
 }
 
-fn advance(crucible: Crucible, grid: &Grid<u32>) -> u32 {
-    let mut todo = VecDeque::from([crucible]);
-
-    // coords, dir, remaining straight -> heat
-    let visited = &mut HashMap::<(i32, i32, Direction, i32), u32>::new();
+fn advance(start: Vec<Crucible>, grid: &Grid<u32>, min_straight: i32, max_straight: i32) -> u32 {
+    let mut todo = VecDeque::from(start);
+    let mut visited = Grid {
+        width: grid.width,
+        height: grid.height,
+        tiles: vec![[None, None, None, None]; (grid.width * grid.height) as usize],
+    };
     while let Some(crucible) = todo.pop_front() {
-        if let Some(h2) = visited.get(&(
-            crucible.x,
-            crucible.y,
-            crucible.dir,
-            crucible.remaining_straight,
-        )) {
+        let h2 = &mut visited.get_mut(crucible.x, crucible.y)[crucible.dir as usize];
+        if let Some(h2) = h2 {
             if crucible.heat_loss >= *h2 {
                 continue;
             }
         }
-        visited.insert(
-            (
-                crucible.x,
-                crucible.y,
-                crucible.dir,
-                crucible.remaining_straight,
-            ),
-            crucible.heat_loss,
-        );
-        todo.extend(crucible.step(grid));
+        *h2 = Some(crucible.heat_loss);
+        todo.extend(crucible.step(grid, min_straight, max_straight));
     }
     visited
-        .iter()
-        .filter_map(|((x, y, _dir, _rs), h)| {
-            if (*x, *y) == (grid.width - 1, grid.height - 1) {
-                Some(*h)
-            } else {
-                None
-            }
-        })
+        .get(grid.width - 1, grid.height - 1)
+        .into_iter()
+        .flatten()
         .min()
         .unwrap()
 }
@@ -174,14 +179,24 @@ fn main() {
             .collect::<Vec<_>>(),
     );
     let r1 = advance(
-        Crucible {
-            x: 0,
-            y: 0,
-            dir: Direction::Right,
-            remaining_straight: MAX_STRAIGHT,
-            heat_loss: 0,
-        },
+        vec![
+            Crucible::new(Direction::Right),
+            Crucible::new(Direction::Down),
+        ],
         &grid,
+        0,
+        3,
     );
     println!("{}", r1);
+
+    let r2 = advance(
+        vec![
+            Crucible::new(Direction::Right),
+            Crucible::new(Direction::Down),
+        ],
+        &grid,
+        4,
+        10,
+    );
+    println!("{}", r2);
 }
