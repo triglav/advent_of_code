@@ -1,6 +1,9 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::{HashMap, VecDeque},
+    io,
+};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum PartType {
     X,
     M,
@@ -145,6 +148,111 @@ fn evaluate_workflows(workflows: &HashMap<String, Vec<Rule>>, part: &Part) -> bo
     location == "A"
 }
 
+#[derive(Debug, Clone)]
+struct PartCombinations {
+    parts: HashMap<PartType, (u32, u32)>,
+}
+
+impl PartCombinations {
+    pub fn new() -> Self {
+        Self {
+            parts: HashMap::from([
+                (PartType::X, (1, 4000)),
+                (PartType::M, (1, 4000)),
+                (PartType::A, (1, 4000)),
+                (PartType::S, (1, 4000)),
+            ]),
+        }
+    }
+
+    pub fn get(&self, part_type: PartType) -> (u32, u32) {
+        *self.parts.get(&part_type).expect("Unknown part type")
+    }
+
+    fn clone_with(&self, part_type: PartType, value: (u32, u32)) -> Self {
+        let mut parts = self.parts.clone();
+        parts.entry(part_type).and_modify(|e| *e = value);
+        Self { parts }
+    }
+
+    pub fn split_by_less_than(
+        &self,
+        part_type: PartType,
+        value: u32,
+    ) -> (Option<PartCombinations>, Option<PartCombinations>) {
+        let (l, r) = self.get(part_type);
+        let left = (l, r.min(value - 1));
+        let right = (l.max(value), r);
+
+        let accepted = if left.0 <= left.1 {
+            Some(self.clone_with(part_type, left))
+        } else {
+            None
+        };
+        let rejected = if right.0 <= right.1 {
+            Some(self.clone_with(part_type, right))
+        } else {
+            None
+        };
+        (accepted, rejected)
+    }
+
+    pub fn split_by_greater_than(
+        &self,
+        part_type: PartType,
+        value: u32,
+    ) -> (Option<PartCombinations>, Option<PartCombinations>) {
+        let (rejected, accepted) = self.split_by_less_than(part_type, value + 1);
+        (accepted, rejected)
+    }
+
+    pub fn split_by_condition(
+        &self,
+        condition: &Condition,
+    ) -> (Option<PartCombinations>, Option<PartCombinations>) {
+        match condition {
+            Condition::LessThan(t, v) => self.split_by_less_than(*t, *v),
+            Condition::GreaterThan(t, v) => self.split_by_greater_than(*t, *v),
+            Condition::Nope => (Some(self.clone()), None),
+        }
+    }
+
+    pub fn count_combinations(&self) -> u64 {
+        self.parts
+            .values()
+            .map(|(l, r)| (r - l + 1) as u64)
+            .product()
+    }
+}
+
+fn split_part_combinations(workflows: &HashMap<String, Vec<Rule>>) -> Vec<PartCombinations> {
+    let mut accepted = Vec::new();
+
+    let mut todo = VecDeque::from([("in", PartCombinations::new())]);
+    while let Some((location, combinations)) = todo.pop_front() {
+        if location == "A" {
+            accepted.push(combinations);
+            continue;
+        }
+        if location == "R" {
+            continue;
+        }
+
+        let workflow = workflows.get(location).unwrap();
+        let mut combinations = combinations;
+        for rule in workflow {
+            let (accepted, rejected) = combinations.split_by_condition(&rule.condition);
+            if let Some(accepted) = accepted {
+                todo.push_back((&rule.destination, accepted));
+            }
+            if let Some(rejected) = rejected {
+                combinations = rejected;
+            }
+        }
+    }
+    accepted
+}
+
 fn main() {
     let mut lines = io::stdin().lines().map(|l| l.unwrap());
 
@@ -156,4 +264,174 @@ fn main() {
         .filter_map(|p| evaluate_workflows(&workflows, &p).then_some(p.x + p.m + p.a + p.s))
         .sum::<u32>();
     println!("{}", r1);
+
+    let r2 = split_part_combinations(&workflows)
+        .into_iter()
+        .map(|c| c.count_combinations())
+        .sum::<u64>();
+    println!("{}", r2);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_by_less_than() {
+        let c = PartCombinations::new();
+
+        let (a, r) = c.split_by_less_than(PartType::X, 500);
+        let a = a.unwrap();
+        let r = r.unwrap();
+
+        assert_eq!(a.get(PartType::X), (1, 499));
+        assert_eq!(a.get(PartType::M), (1, 4000));
+        assert_eq!(a.get(PartType::A), (1, 4000));
+        assert_eq!(a.get(PartType::S), (1, 4000));
+
+        assert_eq!(r.get(PartType::X), (500, 4000));
+        assert_eq!(r.get(PartType::M), (1, 4000));
+        assert_eq!(r.get(PartType::A), (1, 4000));
+        assert_eq!(r.get(PartType::S), (1, 4000));
+
+        let (a, r) = a.split_by_less_than(PartType::M, 1234);
+        let a = a.unwrap();
+        let r = r.unwrap();
+
+        assert_eq!(a.get(PartType::X), (1, 499));
+        assert_eq!(a.get(PartType::M), (1, 1233));
+        assert_eq!(a.get(PartType::A), (1, 4000));
+        assert_eq!(a.get(PartType::S), (1, 4000));
+
+        assert_eq!(r.get(PartType::X), (1, 499));
+        assert_eq!(r.get(PartType::M), (1234, 4000));
+        assert_eq!(r.get(PartType::A), (1, 4000));
+        assert_eq!(r.get(PartType::S), (1, 4000));
+
+        let (a2, r2) = a.split_by_less_than(PartType::X, 2000);
+        let a2 = a2.unwrap();
+
+        assert_eq!(a2.get(PartType::X), (1, 499));
+        assert_eq!(a2.get(PartType::M), (1, 1233));
+        assert_eq!(a2.get(PartType::A), (1, 4000));
+        assert_eq!(a2.get(PartType::S), (1, 4000));
+
+        assert!(r2.is_none());
+
+        let (a2, r2) = r.split_by_less_than(PartType::M, 1000);
+        let r2 = r2.unwrap();
+
+        assert!(a2.is_none());
+
+        assert_eq!(r2.get(PartType::X), (1, 499));
+        assert_eq!(r2.get(PartType::M), (1234, 4000));
+        assert_eq!(r2.get(PartType::A), (1, 4000));
+        assert_eq!(r2.get(PartType::S), (1, 4000));
+    }
+
+    #[test]
+    fn test_split_by_greater_than() {
+        let c = PartCombinations::new();
+
+        let (a, r) = c.split_by_greater_than(PartType::X, 500);
+        let a = a.unwrap();
+        let r = r.unwrap();
+
+        assert_eq!(a.get(PartType::X), (501, 4000));
+        assert_eq!(a.get(PartType::M), (1, 4000));
+        assert_eq!(a.get(PartType::A), (1, 4000));
+        assert_eq!(a.get(PartType::S), (1, 4000));
+
+        assert_eq!(r.get(PartType::X), (1, 500));
+        assert_eq!(r.get(PartType::M), (1, 4000));
+        assert_eq!(r.get(PartType::A), (1, 4000));
+        assert_eq!(r.get(PartType::S), (1, 4000));
+
+        let (a, r) = a.split_by_greater_than(PartType::M, 1234);
+        let a = a.unwrap();
+        let r = r.unwrap();
+
+        assert_eq!(a.get(PartType::X), (501, 4000));
+        assert_eq!(a.get(PartType::M), (1235, 4000));
+        assert_eq!(a.get(PartType::A), (1, 4000));
+        assert_eq!(a.get(PartType::S), (1, 4000));
+
+        assert_eq!(r.get(PartType::X), (501, 4000));
+        assert_eq!(r.get(PartType::M), (1, 1234));
+        assert_eq!(r.get(PartType::A), (1, 4000));
+        assert_eq!(r.get(PartType::S), (1, 4000));
+
+        let (a2, r2) = a.split_by_greater_than(PartType::X, 200);
+        let a2 = a2.unwrap();
+
+        assert_eq!(a2.get(PartType::X), (501, 4000));
+        assert_eq!(a2.get(PartType::M), (1235, 4000));
+        assert_eq!(a2.get(PartType::A), (1, 4000));
+        assert_eq!(a2.get(PartType::S), (1, 4000));
+
+        assert!(r2.is_none());
+
+        let (a2, r2) = r.split_by_greater_than(PartType::M, 2000);
+        let r2 = r2.unwrap();
+
+        assert!(a2.is_none());
+
+        assert_eq!(r2.get(PartType::X), (501, 4000));
+        assert_eq!(r2.get(PartType::M), (1, 1234));
+        assert_eq!(r2.get(PartType::A), (1, 4000));
+        assert_eq!(r2.get(PartType::S), (1, 4000));
+    }
+
+    #[test]
+    fn test_count_combinations() {
+        let c = PartCombinations {
+            parts: HashMap::from([
+                (PartType::X, (1, 1)),
+                (PartType::M, (1, 1)),
+                (PartType::A, (1, 1)),
+                (PartType::S, (1, 1)),
+            ]),
+        };
+        assert_eq!(c.count_combinations(), 1);
+
+        let c = PartCombinations {
+            parts: HashMap::from([
+                (PartType::X, (1, 2)),
+                (PartType::M, (1, 1)),
+                (PartType::A, (1, 1)),
+                (PartType::S, (1, 1)),
+            ]),
+        };
+        assert_eq!(c.count_combinations(), 2);
+
+        let c = PartCombinations {
+            parts: HashMap::from([
+                (PartType::X, (2, 2)),
+                (PartType::M, (1, 1)),
+                (PartType::A, (1, 1)),
+                (PartType::S, (1, 1)),
+            ]),
+        };
+        assert_eq!(c.count_combinations(), 1);
+
+        let c = PartCombinations {
+            parts: HashMap::from([
+                (PartType::X, (1, 100)),
+                (PartType::M, (1, 1)),
+                (PartType::A, (1, 1)),
+                (PartType::S, (1, 1)),
+            ]),
+        };
+        assert_eq!(c.count_combinations(), 100);
+
+        let c = PartCombinations {
+            parts: HashMap::from([
+                (PartType::X, (1, 2)),
+                (PartType::M, (1, 2)),
+                (PartType::A, (1, 2)),
+                (PartType::S, (1, 2)),
+            ]),
+        };
+        assert_eq!(c.count_combinations(), 16);
+    }
 }
