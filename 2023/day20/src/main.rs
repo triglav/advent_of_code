@@ -12,6 +12,7 @@ enum Pulse {
 
 trait Module: fmt::Debug {
     fn name(&self) -> &str;
+    fn inputs(&self) -> &HashSet<String>;
     fn destinations(&self) -> &Vec<String>;
     fn wire_input(&mut self, input: &str);
 
@@ -45,6 +46,9 @@ impl OutputModule {
 impl Module for OutputModule {
     fn name(&self) -> &str {
         &self.name
+    }
+    fn inputs(&self) -> &HashSet<String> {
+        &self.inputs
     }
     fn destinations(&self) -> &Vec<String> {
         &self.destinations
@@ -80,6 +84,10 @@ impl FlipFlopModule {
 impl Module for FlipFlopModule {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn inputs(&self) -> &HashSet<String> {
+        &self.inputs
     }
 
     fn destinations(&self) -> &Vec<String> {
@@ -132,6 +140,10 @@ impl Module for ConjunctionModule {
         &self.name
     }
 
+    fn inputs(&self) -> &HashSet<String> {
+        &self.inputs
+    }
+
     fn destinations(&self) -> &Vec<String> {
         &self.destinations
     }
@@ -171,6 +183,10 @@ impl BroadcastModule {
 impl Module for BroadcastModule {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn inputs(&self) -> &HashSet<String> {
+        &self.inputs
     }
 
     fn destinations(&self) -> &Vec<String> {
@@ -220,18 +236,64 @@ fn wire_inputs(modules: &mut HashMap<String, Box<dyn Module>>) {
         });
 }
 
-fn press_button(modules: &mut HashMap<String, Box<dyn Module>>) -> (u64, u64) {
-    let mut low_signal_count = 1u64;
-    let mut high_signal_count = 0u64;
-    let mut todo = VecDeque::from([("button".to_string(), Pulse::Low, "broadcaster".to_string())]);
-    while let Some((from, pulse, name)) = todo.pop_front() {
-        let m = modules.get_mut(&name).unwrap();
-        let signals = m.handle_pulse(from, pulse);
-        low_signal_count += signals.iter().filter(|(_, p, _)| *p == Pulse::Low).count() as u64;
-        high_signal_count += signals.iter().filter(|(_, p, _)| *p == Pulse::High).count() as u64;
-        todo.extend(signals);
+struct Machine {
+    presses: u64,
+    modules: HashMap<String, Box<dyn Module>>,
+    needed: HashMap<String, Option<u64>>,
+}
+
+impl Machine {
+    fn new(modules: HashMap<String, Box<dyn Module>>, destination: &str) -> Self {
+        let last_inputs = modules.get(destination).unwrap().inputs();
+        assert_eq!(last_inputs.len(), 1);
+        let last_input = last_inputs.iter().next().unwrap();
+        let needed = modules
+            .get(last_input)
+            .unwrap()
+            .inputs()
+            .iter()
+            .map(|i| (i.clone(), None))
+            .collect();
+        Self {
+            presses: 0,
+            modules,
+            needed,
+        }
     }
-    (low_signal_count, high_signal_count)
+
+    fn got_all_needed(&self) -> bool {
+        self.needed.values().all(|v| v.is_some())
+    }
+
+    fn mark_needed(&mut self, name: &str, pulse: Pulse) {
+        if pulse != Pulse::High {
+            return;
+        }
+        if let Some(n) = self.needed.get_mut(name) {
+            if n.is_none() {
+                *n = Some(self.presses);
+            }
+        }
+    }
+
+    fn press_button(&mut self) -> (u64, u64) {
+        self.presses += 1;
+        let mut low_signal_count = 1u64;
+        let mut high_signal_count = 0u64;
+        let mut todo =
+            VecDeque::from([("button".to_string(), Pulse::Low, "broadcaster".to_string())]);
+        while let Some((from, pulse, name)) = todo.pop_front() {
+            self.mark_needed(&from, pulse);
+
+            let m = self.modules.get_mut(&name).unwrap();
+            let signals = m.handle_pulse(from, pulse);
+            low_signal_count += signals.iter().filter(|(_, p, _)| *p == Pulse::Low).count() as u64;
+            high_signal_count +=
+                signals.iter().filter(|(_, p, _)| *p == Pulse::High).count() as u64;
+            todo.extend(signals);
+        }
+        (low_signal_count, high_signal_count)
+    }
 }
 
 fn main() {
@@ -243,9 +305,17 @@ fn main() {
         })
         .collect::<HashMap<_, _>>();
     wire_inputs(&mut modules);
+
+    let mut machine = Machine::new(modules, "rx");
     let (l, h) = (0..1000)
-        .map(|_| press_button(&mut modules))
+        .map(|_| machine.press_button())
         .fold((0, 0), |(a, b), (c, d)| (a + c, b + d));
     let r1 = l * h;
     println!("{}", r1);
+
+    while !machine.got_all_needed() {
+        machine.press_button();
+    }
+    let r2 = machine.needed.values().map(|v| v.unwrap()).product::<u64>();
+    println!("{}", r2);
 }
