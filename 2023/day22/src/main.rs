@@ -1,5 +1,9 @@
 use core::fmt;
-use std::{cmp::Ordering, collections::HashMap, io};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet, VecDeque},
+    io,
+};
 
 use itertools::{iproduct, Itertools};
 
@@ -169,6 +173,9 @@ impl World {
     }
 
     fn get_blocks_below(&self, b: &Block) -> Vec<usize> {
+        if b.start.z == 0 {
+            return Vec::new();
+        }
         iproduct!(b.start.x..=b.end.x, b.start.y..=b.end.y)
             .map(|(x, y)| self.get(x, y, b.start.z - 1))
             .filter(|&id| id != 0)
@@ -211,6 +218,46 @@ impl World {
             .count();
         can_disintegrate
     }
+
+    fn analyse2(&self) -> usize {
+        fn analyse2_detail(
+            block_map: &HashMap<&usize, (Vec<usize>, Vec<usize>)>,
+            start: usize,
+        ) -> usize {
+            let mut falling = HashSet::new();
+            falling.insert(start);
+
+            let (above_start, _below_start) = block_map.get(&start).unwrap();
+            let mut todo = VecDeque::<usize>::new();
+            todo.extend(above_start);
+
+            while let Some(id) = todo.pop_front() {
+                let (above, below) = block_map.get(&id).unwrap();
+                let all_below_falling = below.iter().all(|id| falling.contains(id));
+                if !all_below_falling {
+                    continue;
+                }
+                falling.insert(id);
+                todo.extend(above);
+            }
+            falling.len() - 1
+        }
+
+        let block_map = self
+            .blocks
+            .iter()
+            .map(|(id, b)| {
+                let above = self.get_blocks_above(b);
+                let below = self.get_blocks_below(b);
+                (id, (above, below))
+            })
+            .collect::<HashMap<_, _>>();
+
+        self.blocks
+            .keys()
+            .map(|id| analyse2_detail(&block_map, *id))
+            .sum::<usize>()
+    }
 }
 
 fn main() {
@@ -226,4 +273,7 @@ fn main() {
 
     let r1 = world.analyse();
     println!("{}", r1);
+
+    let r2 = world.analyse2();
+    println!("{}", r2);
 }
