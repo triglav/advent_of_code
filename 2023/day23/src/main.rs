@@ -127,7 +127,7 @@ impl fmt::Display for Graph {
 }
 
 impl Graph {
-    pub fn trace(grid: &Grid<char>, start: Node) -> Graph {
+    pub fn trace(grid: &Grid<char>, start: Node, ignore_slopes: bool) -> Graph {
         let mut nodes = HashMap::<Node, Vec<Edge>>::new();
         let mut hit_grid = Grid::new(grid.width, grid.height, false);
 
@@ -158,7 +158,7 @@ impl Graph {
                 t,
                 n
             );
-            let is_slope = t != '.';
+            let is_slope = t != '.' && !ignore_slopes;
             let is_slope_same_dir = match t {
                 '>' => dir.0 == 1 && dir.1 == 0,
                 '<' => dir.0 == -1 && dir.1 == 0,
@@ -244,7 +244,11 @@ fn main() {
     let grid = Grid::from(lines);
 
     let start = Node::new(1, 0);
-    let graph = Graph::trace(&grid, start);
+    let graph = Graph::trace(&grid, start, false);
     let r1 = graph.find_paths(start).into_iter().max().unwrap();
     println!("{}", r1);
+
+    let graph = Graph::trace(&grid, start, true);
+    let r2 = graph.find_paths(start).into_iter().max().unwrap();
+    println!("{}", r2);
 }
