@@ -1,9 +1,12 @@
 use core::fmt;
-use std::io;
+use std::{
+    collections::{HashMap, HashSet},
+    i128, io,
+};
 
 use itertools::Itertools;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 struct Vec3 {
     x: f64,
     y: f64,
@@ -23,6 +26,15 @@ impl Vec3 {
 
     fn norm2(&self) -> f64 {
         self.x * self.x + self.y * self.y + self.z * self.z
+    }
+
+    fn get_i128(&self, idx: usize) -> i128 {
+        match idx {
+            0 => self.x as i128,
+            1 => self.y as i128,
+            2 => self.z as i128,
+            _ => panic!("Invalid index"),
+        }
     }
 }
 
@@ -53,11 +65,26 @@ impl std::ops::Mul<f64> for Vec3 {
 
 #[derive(Debug, Copy, Clone)]
 struct Hailstone {
+    id: usize,
     pos: Vec3,
     vel: Vec3,
 }
 
-fn parse(line: &str) -> Hailstone {
+impl PartialEq for Hailstone {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Hailstone {}
+
+impl std::hash::Hash for Hailstone {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
+}
+
+fn parse(idx: usize, line: &str) -> Hailstone {
     let t = line.split('@').collect::<Vec<_>>();
     let pos = t[0]
         .split(',')
@@ -68,12 +95,13 @@ fn parse(line: &str) -> Hailstone {
         .map(|s| s.trim().parse::<f64>().unwrap())
         .collect::<Vec<_>>();
     Hailstone {
+        id: idx,
         pos: Vec3::new(pos[0], pos[1], pos[2]),
         vel: Vec3::new(vel[0], vel[1], vel[2]),
     }
 }
 
-fn line_intersection(a: (Vec3, Vec3), b: (Vec3, Vec3)) -> Option<Vec3> {
+fn segment_intersection(a: (Vec3, Vec3), b: (Vec3, Vec3)) -> Option<Vec3> {
     let (p1, p2) = a;
     let (q1, q2) = b;
 
@@ -154,23 +182,98 @@ fn get_trajectory_in_boundaries_2d(
     Some((*h, (r[0].1, r[1].1)))
 }
 
+fn find_most_used_velocities(velocities: &[i128]) -> Vec<(&i128, i32)> {
+    velocities
+        .iter()
+        .fold(HashMap::new(), |mut acc, v| {
+            *acc.entry(v).or_insert(0) += 1;
+            acc
+        })
+        .into_iter()
+        .filter(|(_, c)| *c > 2)
+        .collect_vec()
+}
+
+fn find_suitable_rock_velocities(
+    hailstones: &[Hailstone],
+    idx: usize,
+    m_vel: i128,
+) -> HashSet<i128> {
+    let hailstones_with_m_vel = hailstones
+        .iter()
+        .filter(|h| h.vel.get_i128(idx) == m_vel)
+        .collect_vec();
+    let velocities = (-1000..=1000)
+        .filter(|&rock_vel| {
+            hailstones_with_m_vel.iter().combinations(2).all(|c| {
+                let a = c[0];
+                let b = c[1];
+
+                let v = (rock_vel - a.vel.get_i128(idx)).abs();
+                if v == 0 {
+                    return false;
+                }
+                (a.pos.get_i128(idx) - b.pos.get_i128(idx)).abs() % v == 0
+            })
+        })
+        .collect::<HashSet<_>>();
+    velocities
+}
+
+fn find_rock_velocity(hailstones: &[Hailstone], idx: usize) -> i128 {
+    let vel = hailstones.iter().map(|h| h.vel.get_i128(idx)).collect_vec();
+    let m_vel = find_most_used_velocities(&vel);
+
+    let suitable_veloctities = m_vel
+        .iter()
+        .map(|v| find_suitable_rock_velocities(hailstones, idx, *v.0))
+        .reduce(|a, b| a.intersection(&b).cloned().collect())
+        .unwrap();
+    assert_eq!(suitable_veloctities.len(), 1);
+    *suitable_veloctities.iter().next().unwrap()
+}
+
 fn main() {
     let hailstones = io::stdin()
         .lines()
-        .map(|l| parse(l.unwrap().as_str()))
+        .enumerate()
+        .map(|(i, l)| parse(i, l.unwrap().as_str()))
         .collect::<Vec<_>>();
 
     let boundaries_min = 200000000000000.0;
     let boundaries_max = 400000000000000.0;
 
     let hailstones_2d = hailstones.iter().map(|h| Hailstone {
+        id: h.id,
         pos: Vec3::new(h.pos.x, h.pos.y, 0.0),
         vel: Vec3::new(h.vel.x, h.vel.y, 0.0),
     });
     let intersections_2d = hailstones_2d
         .filter_map(|h| get_trajectory_in_boundaries_2d(&h, (boundaries_min, boundaries_max)))
         .combinations(2)
-        .filter_map(|c| line_intersection(c[0].1, c[1].1));
+        .filter_map(|c| segment_intersection(c[0].1, c[1].1));
     let r1 = intersections_2d.count();
     println!("{:?}", r1);
+
+    let rock_vel = Vec3 {
+        x: find_rock_velocity(&hailstones, 0) as f64,
+        y: find_rock_velocity(&hailstones, 1) as f64,
+        z: find_rock_velocity(&hailstones, 2) as f64,
+    };
+
+    let mut i = hailstones.iter();
+    let h1 = i.next().unwrap();
+    let h2 = i.next().unwrap();
+
+    let ma = (h1.vel.y - rock_vel.y) / (h1.vel.x - rock_vel.x);
+    let mb = (h2.vel.y - rock_vel.y) / (h2.vel.x - rock_vel.x);
+    let ca = h1.pos.y - ma * h1.pos.x;
+    let cb = h2.pos.y - mb * h2.pos.x;
+    let x_pos = ((cb - ca) / (ma - mb)).round();
+    let y_pos = (ma * x_pos + ca).round();
+    let time = (x_pos - h1.pos.x) / (h1.vel.x - rock_vel.x);
+    let z_pos = h1.pos.z + (h1.vel.z - rock_vel.z) * time;
+
+    let r2 = x_pos + y_pos + z_pos;
+    println!("{}", r2);
 }
