@@ -69,9 +69,37 @@ func solve1(line string) int {
 	return Abs(p.x) + Abs(p.y)
 }
 
+func solve2(line string) int {
+	p := Position{0, 0}
+	d := NORTH
+	visited := make(map[Position]bool)
+	visited[p] = true
+	for _, s := range strings.Split(line, ", ") {
+		switch s[0] {
+		case 'L':
+			d.TurnLeft()
+		case 'R':
+			d.TurnRight()
+		default:
+			panic(fmt.Sprint("invalid direction token:", s[0]))
+		}
+		steps, _ := strconv.Atoi(strings.TrimSpace(s[1:]))
+		for range steps {
+			p.Walk(d, 1)
+			_, v := visited[p]
+			if v {
+				return Abs(p.x) + Abs(p.y)
+			}
+			visited[p] = true
+		}
+	}
+	panic("no solution -> no double visit")
+}
+
 func main() {
 	input := bufio.NewReader(os.Stdin)
 	line, _ := input.ReadString('\n')
 
 	fmt.Println(solve1(line))
+	fmt.Println(solve2(line))
 }

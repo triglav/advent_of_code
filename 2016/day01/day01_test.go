@@ -73,3 +73,23 @@ func TestSolve1(t *testing.T) {
 		})
 	}
 }
+
+func TestSolve2(t *testing.T) {
+	testCases := []struct {
+		in   string
+		want int
+	}{
+		{
+			in:   "R8, R4, R4, R8",
+			want: 4,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.in, func(t *testing.T) {
+			got := solve2(tC.in)
+			if got != tC.want {
+				t.Errorf("TurnLeft(%s) == %d, want %d", tC.in, got, tC.want)
+			}
+		})
+	}
+}
