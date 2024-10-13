@@ -37,6 +37,23 @@ func (h *HitMap) MostCommon() byte {
 	return mostCommon
 }
 
+const (
+	MaxUint = ^uint(0)
+	MaxInt  = int(MaxUint >> 1)
+)
+
+func (h *HitMap) LeastCommon() byte {
+	var leastCommon byte
+	minCount := MaxInt
+	for c, count := range *h {
+		if count < minCount {
+			minCount = count
+			leastCommon = c
+		}
+	}
+	return leastCommon
+}
+
 func solve1(lines []string) string {
 	length := len(lines[0])
 	h := make([]HitMap, length)
@@ -55,8 +72,27 @@ func solve1(lines []string) string {
 	return string(s)
 }
 
+func solve2(lines []string) string {
+	length := len(lines[0])
+	h := make([]HitMap, length)
+	for i := range h {
+		h[i] = make(HitMap)
+	}
+	for _, l := range lines {
+		for i, c := range l {
+			h[i].Add(byte(c))
+		}
+	}
+	s := []byte{}
+	for i := range h {
+		s = append(s, h[i].LeastCommon())
+	}
+	return string(s)
+}
+
 func main() {
 	input := bufio.NewScanner(os.Stdin)
 	lines := ReadAllLines(input)
 	fmt.Println(solve1(lines))
+	fmt.Println(solve2(lines))
 }
