@@ -31,7 +31,28 @@ func solve1(line string) string {
 	return string(password)
 }
 
+func solve2(line string) string {
+	password := []byte{'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x'}
+	found := 0
+	for index := 0; found < 8; index++ {
+		h := makeHash(line, index)
+		if startsWith5Zeroes(h) {
+			pos := int(h[5]) - '0'
+			if pos < 0 || pos > 7 {
+				continue
+			}
+			if password[pos] != 'x' {
+				continue
+			}
+			password[pos] = h[6]
+			found++
+		}
+	}
+	return string(password)
+}
+
 func main() {
 	line := "reyedfim"
 	fmt.Println(solve1(line))
+	fmt.Println(solve2(line))
 }

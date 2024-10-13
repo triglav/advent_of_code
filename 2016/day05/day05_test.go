@@ -48,3 +48,20 @@ func TestValidateSolve1(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSolve2(t *testing.T) {
+	testCases := []struct {
+		in, want string
+	}{
+		{
+			in:   "abc",
+			want: "05ace8e3",
+		},
+	}
+	for _, tC := range testCases {
+		t.Run("solve2", func(t *testing.T) {
+			got := solve2(tC.in)
+			assert.Equal(t, tC.want, got)
+		})
+	}
+}
