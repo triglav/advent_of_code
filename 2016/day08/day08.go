@@ -149,6 +149,7 @@ func solve1(lines []string) int {
 	for _, l := range lines {
 		s.Execute(l)
 	}
+	fmt.Println(s)
 	return s.CountLitPixels()
 }
 
