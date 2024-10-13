@@ -42,6 +42,42 @@ func TestValidateIsRealRoom(t *testing.T) {
 	}
 }
 
+func TestValidateShiftLetter(t *testing.T) {
+	testCases := []struct {
+		in, want byte
+	}{
+		{in: 'a', want: 'b'},
+		{in: 'c', want: 'd'},
+		{in: 'o', want: 'p'},
+		{in: 'y', want: 'z'},
+		{in: 'z', want: 'a'},
+		{in: '-', want: ' '},
+	}
+	for _, tC := range testCases {
+		t.Run("ShiftLetter", func(t *testing.T) {
+			got := shiftLetter(tC.in, 1)
+			assert.Equalf(t, tC.want, got, "shiftLetter('%c', 1) == '%c'", tC.in, got)
+		})
+	}
+}
+
+func TestValidateDecryptRoomName(t *testing.T) {
+	testCases := []struct {
+		in, want string
+	}{
+		{
+			in:   "qzmt-zixmtkozy-ivhz-343[abcd]",
+			want: "very encrypted name",
+		},
+	}
+	for _, tC := range testCases {
+		t.Run("DecryptRoomName", func(t *testing.T) {
+			got := DecryptRoomName(tC.in)
+			assert.Equal(t, tC.want, got)
+		})
+	}
+}
+
 func TestValidateSolve1(t *testing.T) {
 	testCases := []struct {
 		in   []string
