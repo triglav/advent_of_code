@@ -1,4 +1,4 @@
-use std::io;
+use std::{collections::HashMap, io};
 
 fn parse(line: &str) -> (u32, u32) {
     let t = line
@@ -21,4 +21,14 @@ fn main() {
     l2.sort();
     let r1 = l1.iter().zip(&l2).map(|(a, b)| a.abs_diff(*b)).sum::<u32>();
     println!("{}", r1);
+
+    let right_hits = l2.iter().fold(HashMap::new(), |mut m, &b| {
+        m.entry(b).and_modify(|e| *e += 1).or_insert(1);
+        m
+    });
+    let r2 = l1
+        .iter()
+        .map(|a| a * right_hits.get(a).unwrap_or(&0))
+        .sum::<u32>();
+    println!("{:?}", r2);
 }
