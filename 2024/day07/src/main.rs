@@ -1,8 +1,10 @@
 use std::{collections::VecDeque, io};
 
+#[derive(Clone, Copy)]
 enum Operator {
     Add,
     Multiply,
+    Concat,
 }
 
 #[derive(Debug, Clone)]
@@ -19,6 +21,7 @@ impl Equation {
         let r = match op {
             Operator::Add => a + b,
             Operator::Multiply => a * b,
+            Operator::Concat => format!("{}{}", a, b).parse::<u64>().unwrap(),
         };
         e.right.push_front(r);
         e
@@ -35,7 +38,7 @@ fn parse(s: &str) -> Equation {
     Equation { left, right }
 }
 
-fn solve(e: &Equation) -> bool {
+fn solve(e: &Equation, operators: &[Operator]) -> bool {
     let mut todo = vec![e.clone()];
     while let Some(e) = todo.pop() {
         if e.right.len() == 1 {
@@ -47,8 +50,7 @@ fn solve(e: &Equation) -> bool {
         if e.right.is_empty() {
             panic!("Invalid equation: {:?}", e);
         }
-        todo.push(e.execute(Operator::Add));
-        todo.push(e.execute(Operator::Multiply));
+        operators.iter().for_each(|op| todo.push(e.execute(*op)))
     }
     false
 }
@@ -59,10 +61,23 @@ fn main() {
         .map(|l| parse(l.unwrap().as_str()))
         .collect::<Vec<_>>();
 
-    let r1 = equations
+    let (e_1, e_2): (Vec<_>, Vec<_>) = equations
+        .into_iter()
+        .partition(|e| solve(e, [Operator::Add, Operator::Multiply].as_ref()));
+
+    let r1 = e_1.iter().map(|e| e.left).sum::<u64>();
+    println!("{}", r1);
+
+    let r2b = e_2
         .iter()
-        .filter(|e| solve(e))
+        .filter(|e| {
+            solve(
+                e,
+                [Operator::Add, Operator::Multiply, Operator::Concat].as_ref(),
+            )
+        })
         .map(|e| e.left)
         .sum::<u64>();
-    println!("{}", r1);
+    let r2 = r1 + r2b;
+    println!("{}", r2);
 }
