@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::{cmp::Ordering, collections::HashMap, io};
 
 fn check(rules: &HashMap<u32, Vec<u32>>, updates: &[u32]) -> bool {
     (0..updates.len() - 1).all(|i| {
@@ -52,4 +52,24 @@ fn main() {
         .map(|u| u[u.len() / 2])
         .sum::<u32>();
     println!("{}", r1);
+
+    let r2 = updates
+        .iter()
+        .filter(|u| !check(&rules, u))
+        .map(|u| {
+            let mut u = u.clone();
+            u.sort_by(|a, b| {
+                if let Some(r_a) = rules.get(a) {
+                    if r_a.contains(b) {
+                        return Ordering::Less;
+                    }
+                }
+                Ordering::Greater
+            });
+            assert!(check(&rules, &u));
+            u
+        })
+        .map(|u| u[u.len() / 2])
+        .sum::<u32>();
+    println!("{}", r2);
 }
