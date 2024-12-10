@@ -60,12 +60,14 @@ fn find_trailheads(grid: &Grid<u8>) -> Vec<(i64, i64)> {
         .collect()
 }
 
-fn score_trailhead(grid: &Grid<u8>, trailhead: (i64, i64)) -> usize {
+fn score_trailhead(grid: &Grid<u8>, trailhead: (i64, i64)) -> (usize, usize) {
     let mut peaks = HashSet::new();
+    let mut rating = 0;
     let mut todo = vec![(trailhead, 0)];
     while let Some(((x, y), height)) = todo.pop() {
         if height == 9 {
             peaks.insert((x, y));
+            rating += 1;
             continue;
         }
         let ns = grid.get_neightbours(x, y);
@@ -75,7 +77,7 @@ fn score_trailhead(grid: &Grid<u8>, trailhead: (i64, i64)) -> usize {
                 todo.push((c, height + 1));
             });
     }
-    peaks.len()
+    (peaks.len(), rating)
 }
 
 fn main() {
@@ -91,10 +93,13 @@ fn main() {
             .collect::<Vec<_>>(),
     );
 
-    let trailheads = find_trailheads(&grid);
-    let r1 = trailheads
+    let trailheads = find_trailheads(&grid)
         .into_iter()
         .map(|t| score_trailhead(&grid, t))
-        .sum::<usize>();
+        .collect::<Vec<_>>();
+    let r1 = trailheads.iter().map(|t| t.0).sum::<usize>();
     println!("{}", r1);
+
+    let r2 = trailheads.iter().map(|t| t.1).sum::<usize>();
+    println!("{}", r2);
 }
