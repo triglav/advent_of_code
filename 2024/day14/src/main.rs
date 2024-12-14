@@ -1,8 +1,9 @@
-use std::io;
+use std::{collections::HashSet, io};
 
+use itertools::{iproduct, Itertools};
 use regex::Regex;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq)]
 struct Coords {
     x: i64,
     y: i64,
@@ -57,6 +58,75 @@ fn pick_quadrant(pos: Coords, size: Coords) -> Option<usize> {
     }
 }
 
+fn print(robots: &HashSet<(i64, i64)>, size: Coords) {
+    iproduct!(0..size.y, 0..size.x).for_each(|(y, x)| {
+        if robots.contains(&(x, y)) {
+            print!("X");
+        } else {
+            print!(".");
+        }
+        if x == size.x - 1 {
+            println!()
+        }
+    });
+    println!();
+}
+
+fn detect_tree(robots: &[(Coords, Coords)]) -> bool {
+    let threshold = 10;
+    robots
+        .iter()
+        .map(|(p, _v)| (p.x, p.y))
+        .sorted_by_key(|&(_x, y)| y)
+        .chunk_by(|&(_x, y)| y)
+        .into_iter()
+        .map(|(_y, g)| g.collect_vec())
+        .filter(|v| v.len() > threshold)
+        .any(|row| {
+            let consecutive = row
+                .iter()
+                .map(|&(x, _y)| x)
+                .sorted()
+                .fold(vec![], |mut acc, c| {
+                    if acc.is_empty() {
+                        acc.push(vec![c]);
+                    } else {
+                        let last = acc.last().unwrap().last().unwrap();
+                        if *last != c {
+                            if last + 1 == c {
+                                acc.last_mut().unwrap().push(c);
+                            } else {
+                                acc.push(vec![c]);
+                            }
+                        }
+                    }
+                    acc
+                });
+            consecutive.into_iter().any(|c| c.len() > threshold)
+        })
+}
+
+fn solve2(robots: &[(Coords, Coords)], size: Coords, show_tree: bool) -> Option<i64> {
+    let mut robots = Vec::from(robots);
+    for i in 1..(size.x * size.y) {
+        robots = robots
+            .into_iter()
+            .map(|(rpos, rvel)| (find_pos(rpos, rvel, size, 1), rvel))
+            .collect::<Vec<_>>();
+        if detect_tree(&robots) {
+            if show_tree {
+                let hashset = robots
+                    .iter()
+                    .map(|(p, _v)| (p.x, p.y))
+                    .collect::<HashSet<_>>();
+                print(&hashset, size);
+            }
+            return Some(i);
+        }
+    }
+    None
+}
+
 fn main() {
     let robots = io::stdin()
         .lines()
@@ -75,4 +145,8 @@ fn main() {
         .into_iter()
         .product::<u64>();
     println!("{}", r1);
+
+    let show_tree = false;
+    let r2 = solve2(&robots, size, show_tree).unwrap();
+    println!("{}", r2);
 }
