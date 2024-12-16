@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Div, Mul, Sub};
 use std::{fmt, io};
 
@@ -196,6 +196,7 @@ struct State {
     pos: Coords,
     dir: Direction,
     score: i64,
+    visited: HashSet<Coords>,
 }
 
 fn main() {
@@ -214,24 +215,45 @@ fn main() {
         pos: start,
         dir: Direction::East,
         score: 0,
+        visited: HashSet::new(),
     };
     let mut hits = HashMap::new();
     let mut todo = vec![p0];
-    while let Some(s) = todo.pop() {
+    let mut best_score = i64::MAX;
+    let mut best_path_tiles = HashSet::new();
+    while let Some(mut s) = todo.pop() {
         if grid.get(s.pos) == '#' {
             continue;
         };
+        if s.score > best_score {
+            continue;
+        }
+        s.visited.insert(s.pos);
 
-        if let Some(score2) = hits.get(&s.pos) {
-            if *score2 <= s.score {
+        if let Some((dir2, score2)) = hits.get(&s.pos) {
+            let d = match (s.dir as i64 - *dir2 as i64).abs() {
+                1 => 1,
+                3 => 1,
+                2 => 2,
+                _ => 0,
+            } * 1000;
+            if *score2 < s.score - d {
                 continue;
             }
-            *hits.get_mut(&s.pos).unwrap() = s.score;
+            *hits.get_mut(&s.pos).unwrap() = (s.dir, s.score);
         } else {
-            hits.insert(s.pos, s.score);
+            hits.insert(s.pos, (s.dir, s.score));
         }
 
         if grid.get(s.pos) == 'E' {
+            if s.score < best_score {
+                best_score = s.score;
+                best_path_tiles = s.visited.clone();
+                continue;
+            }
+            if s.score == best_score {
+                best_path_tiles.extend(s.visited);
+            }
             continue;
         };
 
@@ -239,19 +261,25 @@ fn main() {
             pos: forward(s.pos, turn_left(s.dir)),
             dir: turn_left(s.dir),
             score: s.score + 1001,
+            visited: s.visited.clone(),
         });
         todo.push(State {
             pos: forward(s.pos, turn_right(s.dir)),
             dir: turn_right(s.dir),
             score: s.score + 1001,
+            visited: s.visited.clone(),
         });
         todo.push(State {
             pos: forward(s.pos, s.dir),
             dir: (s.dir),
             score: s.score + 1,
+            visited: s.visited.clone(),
         });
     }
 
-    let r1 = hits.get(&end).unwrap();
+    let r1 = hits.get(&end).unwrap().1;
     println!("{}", r1);
+
+    let r2 = best_path_tiles.len();
+    println!("{}", r2);
 }
