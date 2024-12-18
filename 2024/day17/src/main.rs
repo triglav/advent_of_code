@@ -1,21 +1,21 @@
-use std::io;
+use std::{collections::VecDeque, io};
 
-fn parse_register(s: &str) -> u32 {
+fn parse_register(s: &str) -> u64 {
     s.split_whitespace().last().unwrap().parse().unwrap()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct State {
-    register_a: u32,
-    register_b: u32,
-    register_c: u32,
+    register_a: u64,
+    register_b: u64,
+    register_c: u64,
     instruction_pointer: usize,
     output: String,
 }
 
 impl State {
-    fn evaluate_combo_operand(&self, operand: u32) -> u32 {
-        match operand {
+    fn evaluate_combo_operand(&self, operand: u64) -> u32 {
+        (match operand {
             0 => 0,
             1 => 1,
             2 => 2,
@@ -24,7 +24,7 @@ impl State {
             5 => self.register_b,
             6 => self.register_c,
             _ => panic!("Invalid operand: {}", operand),
-        }
+        }) as u32
     }
 
     fn new() -> Self {
@@ -37,7 +37,7 @@ impl State {
         }
     }
 
-    fn add_output(&self, output: u32) -> Self {
+    fn add_output(&self, output: u64) -> Self {
         let new_output = if self.output.is_empty() {
             output.to_string()
         } else {
@@ -65,7 +65,7 @@ impl State {
         }
     }
 
-    fn with_register_a(&self, register_a: u32) -> Self {
+    fn with_register_a(&self, register_a: u64) -> Self {
         Self {
             register_a,
             output: self.output.clone(),
@@ -73,7 +73,7 @@ impl State {
         }
     }
 
-    fn with_register_b(&self, register_b: u32) -> Self {
+    fn with_register_b(&self, register_b: u64) -> Self {
         Self {
             register_b,
             output: self.output.clone(),
@@ -81,7 +81,7 @@ impl State {
         }
     }
 
-    fn with_register_c(&self, register_c: u32) -> Self {
+    fn with_register_c(&self, register_c: u64) -> Self {
         Self {
             register_c,
             output: self.output.clone(),
@@ -89,12 +89,12 @@ impl State {
         }
     }
 
-    fn evaluate_instruction(&self, opcode: u32, operand: u32) -> Self {
+    fn evaluate_instruction(&self, opcode: u64, operand: u64) -> Self {
         match opcode {
             // adv - division
             0 => {
                 let numerator = self.register_a;
-                let denominator = u32::pow(2, self.evaluate_combo_operand(operand));
+                let denominator = u64::pow(2, self.evaluate_combo_operand(operand));
                 let result = numerator / denominator;
                 self.with_register_a(result).advance_pointer(2)
             }
@@ -106,7 +106,7 @@ impl State {
             // bst - modulo 8
             2 => {
                 let result = self.evaluate_combo_operand(operand) % 8;
-                self.with_register_b(result).advance_pointer(2)
+                self.with_register_b(result as u64).advance_pointer(2)
             }
             // jnz - jump if non-zero
             3 => {
@@ -124,19 +124,19 @@ impl State {
             // out - output operand modulo 8
             5 => {
                 let result = self.evaluate_combo_operand(operand) % 8;
-                self.add_output(result).advance_pointer(2)
+                self.add_output(result as u64).advance_pointer(2)
             }
             // bdv - division
             6 => {
                 let numerator = self.register_a;
-                let denominator = u32::pow(2, self.evaluate_combo_operand(operand));
+                let denominator = u64::pow(2, self.evaluate_combo_operand(operand));
                 let result = numerator / denominator;
                 self.with_register_b(result).advance_pointer(2)
             }
             // cdv - division
             7 => {
                 let numerator = self.register_a;
-                let denominator = u32::pow(2, self.evaluate_combo_operand(operand));
+                let denominator = u64::pow(2, self.evaluate_combo_operand(operand));
                 let result = numerator / denominator;
                 self.with_register_c(result).advance_pointer(2)
             }
@@ -145,15 +145,47 @@ impl State {
     }
 }
 
+fn solve(s0: State, program: &[u64]) -> State {
+    let mut s = s0;
+    while s.instruction_pointer < program.len() {
+        let opcode = program[s.instruction_pointer];
+        let operand = program[s.instruction_pointer + 1];
+        s = s.evaluate_instruction(opcode, operand);
+    }
+    s
+}
+
+fn solve2(program: &[u64]) -> Option<u64> {
+    let mut to_visit = VecDeque::from([(program.len(), 0)]);
+
+    while let Some((pos, a)) = to_visit.pop_front() {
+        for i in 0..8 {
+            let n_a = a * 8 + i;
+            let s0 = State::new().with_register_a(n_a);
+            let s2 = solve(s0, program);
+            let o = s2
+                .output
+                .split(',')
+                .map(|a| a.parse::<u64>().unwrap())
+                .collect::<Vec<_>>();
+            if o == program[pos - 1..] {
+                to_visit.push_back((pos - 1, n_a));
+                if o.len() == program.len() {
+                    return Some(n_a);
+                }
+            }
+        }
+    }
+    None
+}
+
 fn main() {
     let lines = io::stdin().lines().map(|l| l.unwrap()).collect::<Vec<_>>();
     let register_a = parse_register(lines[0].as_str());
     let register_b = parse_register(lines[1].as_str());
     let register_c = parse_register(lines[2].as_str());
-    let program = lines[4]
-        .split_whitespace()
-        .last()
-        .unwrap()
+    let program0 = lines[4].split_whitespace().last().unwrap();
+    let program = program0
         .split(',')
         .map(|s| s.parse().unwrap())
         .collect::<Vec<_>>();
@@ -162,14 +194,15 @@ fn main() {
         .with_register_a(register_a)
         .with_register_b(register_b)
         .with_register_c(register_c);
-    let mut s = s0;
-    while s.instruction_pointer < program.len() {
-        let opcode = program[s.instruction_pointer];
-        let operand = program[s.instruction_pointer + 1];
-        s = s.evaluate_instruction(opcode, operand);
-    }
+    let s = solve(s0, &program);
     let r1 = s.output;
     println!("{}", r1);
+
+    let r2 = solve2(&program).unwrap();
+    println!("{}", r2);
+    // verify
+    let s2 = solve(State::new().with_register_a(r2), &program);
+    assert_eq!(s2.output, program0);
 }
 
 #[cfg(test)]
