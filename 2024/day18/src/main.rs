@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::ops::{Add, Div, Mul, Sub};
 use std::{fmt, io};
 
-use itertools::iproduct;
+use itertools::{iproduct, Itertools};
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct Coords {
@@ -193,4 +193,12 @@ fn main() {
 
     let r1 = solve(&memory).unwrap();
     println!("{}", r1);
+
+    let r2_i = (0..bytes.len()).collect_vec().partition_point(|&i| {
+        let mut memory = Grid::new(memory_dimension, memory_dimension, '.');
+        bytes.iter().take(i).for_each(|&p| *memory.get_mut(p) = '#');
+        solve(&memory).is_some()
+    });
+    let r2 = bytes[r2_i - 1];
+    println!("{},{}", r2.x, r2.y);
 }
