@@ -1,35 +1,23 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    io,
-};
+use std::{collections::HashMap, io};
 
 fn solve(towels: &Vec<&str>, design: &str) -> usize {
-    let mut todo = VecDeque::from(towels.iter().map(|t| t.to_string()).collect::<Vec<_>>());
-    let mut solutions = vec![];
-    let mut seen = HashSet::new();
-    while let Some(d) = todo.pop_front() {
-        if d == design {
-            solutions.push(d);
-            continue;
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    fn solve_rec(towels: &[&str], design: &str, seen: &mut HashMap<String, usize>) -> usize {
+        if design.is_empty() {
+            return 1;
         }
-        if d.len() > design.len() {
-            continue;
+        if seen.contains_key(design) {
+            return *seen.get(design).unwrap();
         }
-        if !design.starts_with(d.as_str()) {
-            continue;
-        }
-        if seen.contains(d.as_str()) {
-            continue;
-        }
-        seen.insert(d.clone());
-        for &t in towels.iter() {
-            let ss = format!("{}{}", d, t);
-            if design.starts_with(ss.as_str()) {
-                todo.push_back(ss);
-            }
-        }
+        let c = towels
+            .iter()
+            .filter(|&&t| design.starts_with(t))
+            .map(|&t| solve_rec(towels, &design[t.len()..], seen))
+            .sum();
+        seen.insert(design.to_string(), c);
+        c
     }
-    solutions.len()
+    solve_rec(towels, design, &mut seen)
 }
 
 fn main() {
@@ -38,10 +26,14 @@ fn main() {
     let towels = lines[0].split(",").map(|x| x.trim()).collect::<Vec<_>>();
     let designs = lines[2..].iter().collect::<Vec<_>>();
 
-    let r1 = designs
+    let solutions = designs
         .iter()
         .map(|d| solve(&towels, d))
-        .filter(|&x| x > 0)
-        .count();
-    println!("{:?}", r1);
+        .collect::<Vec<_>>();
+
+    let r1 = solutions.iter().filter(|&&x| x > 0).count();
+    println!("{}", r1);
+
+    let r2 = solutions.into_iter().sum::<usize>();
+    println!("{}", r2);
 }
