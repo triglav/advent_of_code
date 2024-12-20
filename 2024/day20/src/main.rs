@@ -8,21 +8,6 @@ struct Coords {
     y: i64,
 }
 
-impl Coords {
-    pub fn north() -> Self {
-        Coords { x: 0, y: -1 }
-    }
-    pub fn south() -> Self {
-        Coords { x: 0, y: 1 }
-    }
-    pub fn west() -> Self {
-        Coords { x: -1, y: 0 }
-    }
-    pub fn east() -> Self {
-        Coords { x: 1, y: 0 }
-    }
-}
-
 impl fmt::Debug for Coords {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
@@ -147,6 +132,10 @@ where
             .unwrap()
     }
 
+    pub fn is_valid(&self, p: Coords) -> bool {
+        p.x >= 0 && p.x < self.width && p.y >= 0 && p.y < self.height
+    }
+
     pub fn find(&self, t: T) -> Option<Coords> {
         self.tiles
             .iter()
@@ -198,28 +187,50 @@ fn evaluate_track(grid: &Grid<char>, start: Coords, end: Coords) -> Grid<Option<
     r
 }
 
-fn get_cheat_neighbours(track: &Grid<Option<usize>>, c: Coords) -> Vec<(usize, usize)> {
-    assert_eq!(track.get(c), None);
-    let mut r = vec![];
-    if let Some(n) = track.get(c + Coords::north()) {
-        if let Some(s) = track.get(c + Coords::south()) {
-            r.push((n, s));
-        }
+fn find_cheats(track: &Grid<Option<usize>>, max_len: usize) -> Vec<usize> {
+    fn combos(track: &Grid<Option<usize>>, c: Coords, max_len: usize) -> Vec<(Coords, Coords)> {
+        let max_len = max_len as i64;
+        iproduct!(-max_len..=max_len, -max_len..=max_len)
+            .filter(|(x, y)| x.abs() + y.abs() <= max_len && x.abs() + y.abs() >= 2)
+            .filter_map(|(x, y)| {
+                let d = Coords { x, y };
+                let c2 = c + d;
+                if track.is_valid(c2) {
+                    Some((c, c2))
+                } else {
+                    None
+                }
+            })
+            .map(|(c, c2)| {
+                if c.y < c2.y {
+                    return (c, c2);
+                }
+                if c.y == c2.y && c.x <= c2.x {
+                    return (c, c2);
+                }
+                (c2, c)
+            })
+            .collect_vec()
     }
-    if let Some(e) = track.get(c + Coords::east()) {
-        if let Some(w) = track.get(c + Coords::west()) {
-            r.push((e, w));
-        }
-    }
-    r
-}
 
-fn find_cheats(track: &Grid<Option<usize>>) -> Vec<usize> {
     iproduct!(1..track.height - 1, 1..track.width - 1)
         .map(|(y, x)| Coords { x, y })
-        .filter(|&c| track.get(c).is_none())
-        .flat_map(|c| get_cheat_neighbours(track, c))
-        .map(|(p1, p2)| p1.abs_diff(p2) - 2)
+        .filter(|&c| track.get(c).is_some())
+        .flat_map(|c| combos(track, c, max_len))
+        .unique()
+        .filter_map(|(c, c2)| {
+            if let Some(p1) = track.get(c) {
+                if let Some(p2) = track.get(c2) {
+                    let d = c - c2;
+                    let len = d.x.abs() + d.y.abs();
+                    let s = p1.abs_diff(p2) - len as usize;
+                    if s > 0 {
+                        return Some(s);
+                    }
+                }
+            }
+            None
+        })
         .collect_vec()
 }
 
@@ -234,8 +245,15 @@ fn main() {
     let end = grid.find('E').unwrap();
 
     let track = evaluate_track(&grid, start, end);
-    let cheats = find_cheats(&track);
-
-    let r1 = cheats.iter().filter(|&&c| c >= 100).count();
+    let r1 = find_cheats(&track, 2)
+        .into_iter()
+        .filter(|&c| c >= 100)
+        .count();
     println!("{}", r1);
+
+    let r2 = find_cheats(&track, 20)
+        .into_iter()
+        .filter(|&c| c >= 100)
+        .count();
+    println!("{}", r2);
 }
