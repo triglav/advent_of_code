@@ -127,7 +127,11 @@ fn make_directional_keypad() -> Keypad {
     keypad
 }
 
-fn solve(keypads: &[&Keypad], password: &str) -> String {
+fn solve(
+    keypads: &[&Keypad],
+    password: &str,
+    cache: &mut HashMap<(Coords, Coords, usize), usize>,
+) -> usize {
     fn find_paths(keypad: &Keypad, from: Coords, to: Coords) -> Vec<String> {
         let pos_x = *keypad.get(&'X').unwrap();
         let mut r = vec![];
@@ -171,23 +175,29 @@ fn solve(keypads: &[&Keypad], password: &str) -> String {
     }
 
     if keypads.is_empty() || password.is_empty() {
-        return password.to_string();
+        return password.len();
     }
     let keypad = keypads[0];
     let mut p = keypad.get(&'A').unwrap();
-    let mut sequence = "".to_string();
+    let mut sequence_len = 0;
     for b in password.chars() {
         let p2 = keypad.get(&b).unwrap();
+        if let Some(&len) = cache.get(&(*p, *p2, keypads.len())) {
+            sequence_len += len;
+            p = p2;
+            continue;
+        }
         let paths = find_paths(keypad, *p, *p2);
-        let button_path = paths
+        let button_path_len = paths
             .into_iter()
-            .map(|p| solve(&keypads[1..], &p))
-            .reduce(|a, b| if a.len() < b.len() { a } else { b })
+            .map(|p| solve(&keypads[1..], &p, cache))
+            .reduce(|a, b| a.min(b))
             .unwrap();
-        sequence.push_str(&button_path);
+        cache.insert((*p, *p2, keypads.len()), button_path_len);
+        sequence_len += button_path_len;
         p = p2;
     }
-    sequence
+    sequence_len
 }
 
 fn main() {
@@ -198,18 +208,36 @@ fn main() {
     let r1 = lines
         .iter()
         .map(|password| {
+            let mut cache = HashMap::<(Coords, Coords, usize), usize>::new();
             (
                 password,
                 solve(
                     &[&numeric_keypad, &directional_keypad, &directional_keypad],
                     password,
+                    &mut cache,
                 ),
             )
         })
-        .map(|(password, sequence)| {
+        .map(|(password, sequence_len)| {
             let numeric = password[0..password.len() - 1].parse::<usize>().unwrap();
-            numeric * sequence.len()
+            numeric * sequence_len
         })
         .sum::<usize>();
     println!("{}", r1);
+
+    let r2 = lines
+        .iter()
+        .map(|password| {
+            let mut v1 = vec![&numeric_keypad];
+            let mut v2 = vec![&directional_keypad; 25];
+            v1.append(&mut v2);
+            let mut cache = HashMap::<(Coords, Coords, usize), usize>::new();
+            (password, solve(&v1, password, &mut cache))
+        })
+        .map(|(password, sequence_len)| {
+            let numeric = password[0..password.len() - 1].parse::<usize>().unwrap();
+            numeric * sequence_len
+        })
+        .sum::<usize>();
+    println!("{}", r2);
 }
