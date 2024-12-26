@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     io,
 };
 
@@ -24,6 +24,43 @@ fn find_groups<'a>(
     groups
 }
 
+fn find_largest_group<'a>(connections: &'a HashMap<&'a str, HashSet<&'a str>>) -> Vec<&'a str> {
+    fn find_largest_group_rec<'a>(
+        connections: &'a HashMap<&'a str, HashSet<&'a str>>,
+        group: BTreeSet<&'a str>,
+        seen: &mut HashSet<BTreeSet<&'a str>>,
+    ) -> BTreeSet<&'a str> {
+        if seen.contains(&group) {
+            return group;
+        }
+        seen.insert(group.clone());
+        let group_candidates = connections
+            .iter()
+            .filter(|&(n, _)| !group.contains(n))
+            .collect::<Vec<_>>();
+        if group_candidates.is_empty() {
+            return group;
+        }
+        let largest_group = group_candidates
+            .into_iter()
+            .filter(|(_, e)| group.iter().all(|g| e.contains(g)))
+            .map(|(n, _)| {
+                let mut g2 = group.clone();
+                g2.insert(*n);
+                find_largest_group_rec(connections, g2, seen)
+            })
+            .max_by(|a, b| a.len().cmp(&b.len()));
+        largest_group.unwrap_or(group)
+    }
+
+    let mut seen = HashSet::new();
+    let mut largest_group = find_largest_group_rec(connections, BTreeSet::new(), &mut seen)
+        .into_iter()
+        .collect::<Vec<_>>();
+    largest_group.sort();
+    largest_group
+}
+
 fn main() {
     let lines = io::stdin().lines().map(|l| l.unwrap()).collect::<Vec<_>>();
     let connections = lines
@@ -41,4 +78,7 @@ fn main() {
         .filter(|(a, b, c)| a.starts_with('t') || b.starts_with('t') || c.starts_with('t'))
         .count();
     println!("{}", r1);
+
+    let r2 = find_largest_group(&connections).join(",");
+    println!("{}", r2);
 }
